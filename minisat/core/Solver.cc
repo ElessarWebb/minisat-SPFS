@@ -527,12 +527,36 @@ Lit Solver::pickBranchLit()
             rnd_decisions++; }
 
     // Activity based decision:
-    while (next == var_Undef || value(next) != l_Undef || !decision[next])
+    while (next == var_Undef || value(next) != l_Undef || !decision[next]) {
         if (order_heap.empty()){
             next = var_Undef;
             break;
-        }else
-            next = order_heap.removeMin();
+        } else {
+        	// New Part
+        	int best = -1;
+        	int bestcount = -1;
+        	for (int i = 0; i < order_heap.size(); i++) {
+        		int current;
+    			int temp = checkActiveSymmetries();
+        		for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+					watcherSymmetries[order_heap[i]][j]->notifyEnqueued(mkLit(order_heap[i], true));
+				}
+        		current = checkActiveSymmetries();
+				//printf("%u: Var: %u, Active symmetries Before: %u, Active Symmetries After: %u\n", i, order_heap[i], temp, current);
+				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+					watcherSymmetries[order_heap[i]][j]->notifyBacktrack(mkLit(order_heap[i], true));
+				}
+				if (current > bestcount) {
+					best = order_heap[i];
+					bestcount = current;
+				}
+        	}
+        	next = best;
+        	order_heap.remove(best);
+        	//Old Part
+        	//next = order_heap.removeMin();
+        }
+    }
 
     // Choose polarity based on different polarity modes (global or per-variable):
     if (next == var_Undef)
@@ -543,6 +567,16 @@ Lit Solver::pickBranchLit()
         return mkLit(next, drand(random_seed) < 0.5);
     else
         return mkLit(next, polarity[next]);
+}
+
+int Solver::checkActiveSymmetries() {
+	int count = 0;
+	for (int i = 0; i < symmetries.size(); i++) {
+		if(symmetries[i]->isActive()) {
+			count++;
+		}
+	}
+	return count;
 }
 
 
