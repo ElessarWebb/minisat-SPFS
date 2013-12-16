@@ -189,6 +189,7 @@ public:
 	bool 	canPropagate(Symmetry* sym, Clause& cl);
 	int		nSymmetries(){return symmetries.size();}
 	int		nInvertingSymmetries(){return invertingSyms;}
+	int		checkActiveSymmetries();
 
 	bool	testSymmetry(Symmetry* sym);
 	bool 	testActivityForSymmetries();
@@ -291,7 +292,6 @@ protected:
     //
     void     insertVarOrder   (Var x);                                                 // Insert a variable in the decision order priority queue.
     Lit      pickBranchLit    ();                                                      // Return the next decision variable.
-    int		 checkActiveSymmetries ();												   // Returns the number of active symmetries
     void     newDecisionLevel ();                                                      // Begins a new decision level.
     void     uncheckedEnqueue (Lit p, CRef from = CRef_Undef);                         // Enqueue a literal. Assumes value of literal is undefined.
     bool     enqueue          (Lit p, CRef from = CRef_Undef);                         // Test if fact 'p' contradicts current state, enqueue otherwise.
@@ -700,14 +700,42 @@ public:
 		}
 	}
 
-	int checkNewSymmetries(Lit l) {
-		printf("Before: %u\n", amountNeededForActive);
-		notifyEnqueued(l);
-		printf("After: %u\n", amountNeededForActive);
-		notifyBacktrack(l);
-		printf("Check: %u\n", amountNeededForActive);
+	void tempNotifyEnqueued(Lit l) {
+		//assert(getSymmetrical(l)!=l);
+		//assert(s->value(l)==l_True);
+		//notifiedLits.push(l);
+		if(isPermanentlyInactive()){
+			return;
+		}
+		Lit inverse = getInverse(l);
+		Lit symmetrical = getSymmetrical(l);
+		if(s->isDecision(inverse)){
+			if(s->value(inverse)==l_True){
+				--amountNeededForActive;
+			}
+		}
+		if(s->isDecision(l)){
+			if( s->value(symmetrical)==l_Undef ){
+				++amountNeededForActive;
+			}
+		}
+	}
 
-		return 0;
+	void tempNotifyBacktrack(Lit l) {
+		//assert(getSymmetrical(l)!=l);
+		//assert(s->value(var(l))!=l_Undef);
+		//assert(notifiedLits.size()>0 && notifiedLits.last()==l);
+		//notifiedLits.pop();
+		//nextToPropagate=0;
+		if(isPermanentlyInactive()){
+			return;
+		}
+		if( s->isDecision(l) && s->value(getSymmetrical(l))==l_Undef ){
+			--amountNeededForActive;
+		}
+		if( s->isDecision(getInverse(l)) && s->value(getInverse(l))==l_True){
+			++amountNeededForActive;
+		}
 	}
 
 	bool isActive(){
