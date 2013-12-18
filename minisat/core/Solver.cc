@@ -44,6 +44,7 @@ static DoubleOption  opt_var_decay         (_cat, "var-decay",   "The variable a
 static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
 static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_activity_nl_freq   (_cat, "activity-nl-freq",    "The frequency with which the decision heuristic bases it's decision on symmetry activity without lookahead", 0, DoubleRange(0, true, 1, true));
+static DoubleOption  opt_sym_count_freq   (_cat, "sym-count-freq",    "The frequency with which the decision heuristic bases it's decision on number of symmetries that variable occurs in", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep)", 2, IntRange(0, 2));
 static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
@@ -70,6 +71,7 @@ Solver::Solver() :
   , clause_decay     (opt_clause_decay)
   , random_var_freq  (opt_random_var_freq)
   , activity_nl_freq (opt_activity_nl_freq)
+  , sym_count_freq 	 (opt_sym_count_freq)
   , random_seed      (opt_random_seed)
   , luby_restart     (opt_luby_restart)
   , ccmin_mode       (opt_ccmin_mode)
@@ -567,6 +569,7 @@ Lit Solver::pickBranchLit()
 				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
 					watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
 				}
+
 				if (current > bestcount) {
 					best = order_heap[i];
 					bestcount = current;
@@ -574,13 +577,38 @@ Lit Solver::pickBranchLit()
 			}
 
 			// best should also be not '-1'
-			// ? error checking -> NO FALLBACK (we need to know that our heuristic is used)
+			// TODO error checking -> NO FALLBACK (we need to know that our heuristic is used)
 			next = best;
 			order_heap.remove(best);
 
         	if (value(next) == l_Undef && decision[next])
         		// count use of heuristic
 				heur_act_nl_usages++;
+
+		// symmetry count heuristic
+		// (base decision on number of symmetries that variable occurs in; higher is better)
+        } else if ( drand(random_seed) < sym_count_freq) {
+
+        	int best = -1;
+        	int bestcount = -1;
+        	for (int i = 0; i < order_heap.size(); i++) {
+        		int current;
+        		current = watcherSymmetries[order_heap[i]].size();
+
+				if (current > bestcount) {
+					best = order_heap[i];
+					bestcount = current;
+				}
+        	}
+
+			// best should also be not '-1'
+			// TODO error checking -> NO FALLBACK (we need to know that our heuristic is used)
+			next = best;
+			order_heap.remove(best);
+
+        	if (value(next) == l_Undef && decision[next])
+        		// count use of heuristic
+				heur_sym_count_usages++;
 
 		// original SP heuristic
 		} else {
@@ -1362,6 +1390,7 @@ void Solver::printStats() const
     printf("random                : %-12"PRIu64"\n", heur_rand_usages );
     printf("activity no lookahead : %-12"PRIu64"\n", heur_act_nl_usages );
     printf("original sp           : %-12"PRIu64"\n", heur_original_sp_usages );
+    printf("sym count             : %-12"PRIu64"\n", heur_sym_count_usages );
 
 	// hardware usage
     printf("\n");
