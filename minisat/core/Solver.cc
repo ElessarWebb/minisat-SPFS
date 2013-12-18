@@ -276,6 +276,7 @@ void Solver::addSymmetry(vec<Lit>& from, vec<Lit>& to){
 	symmetries.push(sym);
 	for(int i=0; i<from.size(); ++i){
 		assert(from[i]!=to[i]);
+		sym->updateUsage();
 		watcherSymmetries[toInt(from[i])].push(sym);
 
 		if(from[i]==~to[i]){
@@ -536,16 +537,12 @@ Lit Solver::pickBranchLit()
         	int best = -1;
         	int bestcount = -1;
         	for (int i = 0; i < order_heap.size(); i++) {
-        		int current;
-    			int temp = checkActiveSymmetries();
-        		for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-					watcherSymmetries[order_heap[i]][j]->notifyEnqueued(mkLit(order_heap[i], true));
-				}
-        		current = checkActiveSymmetries();
-				//printf("%u: Var: %u, Active symmetries Before: %u, Active Symmetries After: %u\n", i, order_heap[i], temp, current);
-				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-					watcherSymmetries[order_heap[i]][j]->notifyBacktrack(mkLit(order_heap[i], true));
-				}
+        		int current = 0;
+
+    			for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+    				current += watcherSymmetries[order_heap[i]][j]->getUsage();
+    			}
+        		
 				if (current > bestcount) {
 					best = order_heap[i];
 					bestcount = current;
@@ -554,7 +551,9 @@ Lit Solver::pickBranchLit()
         	next = best;
         	order_heap.remove(best);
         	//Old Part
-        	//next = order_heap.removeMin();
+        	/*
+        	next = order_heap.removeMin();
+        	//*/
         }
     }
 

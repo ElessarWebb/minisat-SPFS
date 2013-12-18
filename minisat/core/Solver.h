@@ -476,13 +476,14 @@ private:
 	int amountNeededForActive;
 	int nextToPropagate;
 	Lit reasonOfPermInactive;
+	int usage;
 
 
 public:
 
 
 	Symmetry(Solver* solver, vec<Lit>& from, vec<Lit>& to, int id):
-		s(solver),id(id){
+		s(solver),id(id),usage(0){
 		assert(from.size()==to.size());
 		int maxIndex = 0;
 		for(int i=0; i<from.size(); ++i){
@@ -712,6 +713,14 @@ public:
 
 	bool isActive(){
 		return amountNeededForActive==0 && !isPermanentlyInactive(); // Laatste test is nodig voor phase change symmetries
+	}
+
+	void updateUsage(){
+		usage++;
+	}
+
+	int getUsage(){
+		return usage;
 	}
 
 	bool isPermanentlyInactive(){
