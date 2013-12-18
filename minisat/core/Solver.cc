@@ -537,15 +537,9 @@ Lit Solver::pickBranchLit()
         	int bestcount = -1;
         	for (int i = 0; i < order_heap.size(); i++) {
         		int current;
-    			int temp = checkActiveSymmetries();
-        		for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-					watcherSymmetries[order_heap[i]][j]->notifyEnqueued(mkLit(order_heap[i], true));
-				}
-        		current = checkActiveSymmetries();
-				//printf("%u: Var: %u, Active symmetries Before: %u, Active Symmetries After: %u\n", i, order_heap[i], temp, current);
-				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-					watcherSymmetries[order_heap[i]][j]->notifyBacktrack(mkLit(order_heap[i], true));
-				}
+
+        		current = watcherSymmetries[order_heap[i]].size();
+
 				if (current > bestcount) {
 					best = order_heap[i];
 					bestcount = current;
