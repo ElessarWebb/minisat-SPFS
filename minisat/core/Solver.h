@@ -51,18 +51,18 @@ public:
     //
     Solver();
     virtual ~Solver();
-    
+
     void	gracefulExit(lbool ret){
     	printf("===============================================================================\n");
     	printResult(ret);
     	printf("This was a graceful exit, no data will be written to files.\n");
     	exit(0);
     }
-    
+
     void	printResult(lbool ret){
     	if (verbosity > 0){
 			printStats();
-			printf("\n"); }	
+			printf("\n"); }
 		printf(ret == l_True ? "SATISFIABLE\n" : ret == l_False ? "UNSATISFIABLE\n" : "INDETERMINATE\n");
     }
 
@@ -71,11 +71,11 @@ public:
     Var     newVar    (lbool upol = l_Undef, bool dvar = true); // Add a new variable with parameters specifying variable mode.
     void    releaseVar(Lit l);                                  // Make literal true and promise to never refer to variable again.
 
-    bool    addClause (const vec<Lit>& ps);                     // Add a clause to the solver. 
+    bool    addClause (const vec<Lit>& ps);                     // Add a clause to the solver.
     bool    addEmptyClause();                                   // Add the empty clause, making the solver contradictory.
-    bool    addClause (Lit p);                                  // Add a unit clause to the solver. 
-    bool    addClause (Lit p, Lit q);                           // Add a binary clause to the solver. 
-    bool    addClause (Lit p, Lit q, Lit r);                    // Add a ternary clause to the solver. 
+    bool    addClause (Lit p);                                  // Add a unit clause to the solver.
+    bool    addClause (Lit p, Lit q);                           // Add a binary clause to the solver.
+    bool    addClause (Lit p, Lit q, Lit r);                    // Add a ternary clause to the solver.
     bool    addClause_(      vec<Lit>& ps);                     // Add a clause to the solver without making superflous internal copy. Will
                                                                 // change the passed vector 'ps'.
 
@@ -107,9 +107,9 @@ public:
     void    toDimacs     (const char* file, Lit p);
     void    toDimacs     (const char* file, Lit p, Lit q);
     void    toDimacs     (const char* file, Lit p, Lit q, Lit r);
-    
+
     // Variable mode:
-    // 
+    //
     void    setPolarity    (Var v, lbool b); // Declare which polarity the decision heuristic should use for a variable. Requires mode 'polarity_user'.
     void    setDecisionVar (Var v, bool b);  // Declare if a variable should be eligible for selection in the decision heuristic.
 
@@ -152,6 +152,7 @@ public:
     double    var_decay;
     double    clause_decay;
     double    random_var_freq;
+    double    activity_nl_freq;
     double    random_seed;
     bool      luby_restart;
     int       ccmin_mode;         // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
@@ -189,6 +190,7 @@ public:
 	bool 	canPropagate(Symmetry* sym, Clause& cl);
 	int		nSymmetries(){return symmetries.size();}
 	int		nInvertingSymmetries(){return invertingSyms;}
+	int		checkActiveSymmetries();
 
 	bool	testSymmetry(Symmetry* sym);
 	bool 	testActivityForSymmetries();
@@ -418,8 +420,8 @@ inline int      Solver::nVars         ()      const   { return next_var; }
 // TODO: nFreeVars() is not quite correct, try to calculate right instead of adapting it like below:
 inline int      Solver::nFreeVars     ()      const   { return (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]); }
 inline void     Solver::setPolarity   (Var v, lbool b){ user_pol[v] = b; }
-inline void     Solver::setDecisionVar(Var v, bool b) 
-{ 
+inline void     Solver::setDecisionVar(Var v, bool b)
+{
     if      ( b && !decision[v]) dec_vars++;
     else if (!b &&  decision[v]) dec_vars--;
 
@@ -450,7 +452,7 @@ inline bool     Solver::okay          ()      const   { return ok; }
 inline ClauseIterator Solver::clausesBegin() const { return ClauseIterator(ca, &clauses[0]); }
 inline ClauseIterator Solver::clausesEnd  () const { return ClauseIterator(ca, &clauses[clauses.size()]); }
 inline TrailIterator  Solver::trailBegin  () const { return TrailIterator(&trail[0]); }
-inline TrailIterator  Solver::trailEnd    () const { 
+inline TrailIterator  Solver::trailEnd    () const {
     return TrailIterator(&trail[decisionLevel() == 0 ? trail.size() : trail_lim[0]]); }
 
 inline void     Solver::toDimacs     (const char* file){ vec<Lit> as; toDimacs(file, as); }
@@ -690,6 +692,44 @@ public:
 			}else{
 				return;
 			}
+		}
+		if( s->isDecision(l) && s->value(getSymmetrical(l))==l_Undef ){
+			--amountNeededForActive;
+		}
+		if( s->isDecision(getInverse(l)) && s->value(getInverse(l))==l_True){
+			++amountNeededForActive;
+		}
+	}
+
+	void tempNotifyEnqueued(Lit l) {
+		//assert(getSymmetrical(l)!=l);
+		//assert(s->value(l)==l_True);
+		//notifiedLits.push(l);
+		if(isPermanentlyInactive()){
+			return;
+		}
+		Lit inverse = getInverse(l);
+		Lit symmetrical = getSymmetrical(l);
+		if(s->isDecision(inverse)){
+			if(s->value(inverse)==l_True){
+				--amountNeededForActive;
+			}
+		}
+		if(s->isDecision(l)){
+			if( s->value(symmetrical)==l_Undef ){
+				++amountNeededForActive;
+			}
+		}
+	}
+
+	void tempNotifyBacktrack(Lit l) {
+		//assert(getSymmetrical(l)!=l);
+		//assert(s->value(var(l))!=l_Undef);
+		//assert(notifiedLits.size()>0 && notifiedLits.last()==l);
+		//notifiedLits.pop();
+		//nextToPropagate=0;
+		if(isPermanentlyInactive()){
+			return;
 		}
 		if( s->isDecision(l) && s->value(getSymmetrical(l))==l_Undef ){
 			--amountNeededForActive;

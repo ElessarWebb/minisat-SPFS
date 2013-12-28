@@ -43,6 +43,7 @@ static const char* _cat = "CORE";
 static DoubleOption  opt_var_decay         (_cat, "var-decay",   "The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
 static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
 static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
+static DoubleOption  opt_activity_nl_freq   (_cat, "activity-nl-freq",    "The frequency with which the decision heuristic bases it's decision on symmetry activity without lookahead", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep)", 2, IntRange(0, 2));
 static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
@@ -68,6 +69,7 @@ Solver::Solver() :
   , var_decay        (opt_var_decay)
   , clause_decay     (opt_clause_decay)
   , random_var_freq  (opt_random_var_freq)
+  , activity_nl_freq (opt_activity_nl_freq)
   , random_seed      (opt_random_seed)
   , luby_restart     (opt_luby_restart)
   , ccmin_mode       (opt_ccmin_mode)
@@ -211,7 +213,7 @@ void Solver::attachClause(CRef cr){
 void Solver::detachClause(CRef cr, bool strict){
     const Clause& c = ca[cr];
     assert(c.size() > 1);
-    
+
     // Strict or lazy detaching:
     if (strict){
         remove(watches[~c[0]], Watcher(cr, c[1]));
@@ -231,7 +233,7 @@ void Solver::removeClause(CRef cr) {
     detachClause(cr);
     // Don't leave pointers to free'd memory!
     if (locked(c)) vardata[var(c[0])].reason = CRef_Undef;
-    c.mark(1); 
+    c.mark(1);
     ca.free(cr);
 }
 
@@ -289,7 +291,7 @@ void Solver::addSymmetry(vec<Lit>& from, vec<Lit>& to){
 		++invertingSyms;
 	}
 
-	if(verbosity>=2){sym->print();} 
+	if(verbosity>=2){sym->print();}
 	assert(testSymmetry(sym));
 }
 
@@ -342,6 +344,16 @@ void Solver::notifySymmetries(Lit p){
 		watcherSymmetries[toInt(p)][i]->notifyEnqueued(p);
 	}
 	assert( testActivityForSymmetries() );
+}
+
+int Solver::checkActiveSymmetries() {
+	int count = 0;
+	for (int i = 0; i < symmetries.size(); i++) {
+		if (symmetries[i]->isActive()) {
+			count++;
+		}
+	}
+	return count;
 }
 
 // sym_testing
@@ -518,21 +530,56 @@ void Solver::testPrintTrail(){
 
 Lit Solver::pickBranchLit()
 {
-    Var next = var_Undef;
+	Var next = var_Undef;
 
     // Random decision:
     if (drand(random_seed) < random_var_freq && !order_heap.empty()){
         next = order_heap[irand(random_seed,order_heap.size())];
         if (value(next) == l_Undef && decision[next])
-            rnd_decisions++; }
+            rnd_decisions++;
+    }
 
     // Activity based decision:
-    while (next == var_Undef || value(next) != l_Undef || !decision[next])
+    while (next == var_Undef || value(next) != l_Undef || !decision[next]) {
+    	// empty heap
         if (order_heap.empty()){
             next = var_Undef;
             break;
-        }else
-            next = order_heap.removeMin();
+
+        // heuristics
+        } else {
+
+        	// symmetry activity heuristic without lookahead
+    		if (drand(random_seed) < activity_nl_freq) {
+				int best = -1;
+				int bestcount = -1;
+				for (int i = 0; i < order_heap.size() && i < 5; i++) {
+					int current;
+					Lit l = mkLit(order_heap[i], polarity[i]);
+					for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+						watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
+					}
+					current = checkActiveSymmetries();
+					for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+						watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
+					}
+					if (current > bestcount) {
+						best = order_heap[i];
+						bestcount = current;
+					}
+				}
+
+				// best should also be not '-1'
+				// ? error checking -> NO FALLBACK (we need to know that our heuristic is used)
+				next = best;
+				order_heap.remove(best);
+
+			// original SP heuristic
+			} else {
+        		next = order_heap.removeMin();
+        	}
+        }
+    }
 
     // Choose polarity based on different polarity modes (global or per-variable):
     if (next == var_Undef)
@@ -545,23 +592,22 @@ Lit Solver::pickBranchLit()
         return mkLit(next, polarity[next]);
 }
 
-
 /*_________________________________________________________________________________________________
 |
 |  analyze : (confl : Clause*) (out_learnt : vec<Lit>&) (out_btlevel : int&)  ->  [void]
-|  
+|
 |  Description:
 |    Analyze conflict and produce a reason clause.
-|  
+|
 |    Pre-conditions:
 |      * 'out_learnt' is assumed to be cleared.
 |      * Current decision level must be greater than root level.
-|  
+|
 |    Post-conditions:
 |      * 'out_learnt[0]' is the asserting literal at level 'out_btlevel'.
-|      * If out_learnt.size() > 1 then 'out_learnt[1]' has the greatest decision level of the 
+|      * If out_learnt.size() > 1 then 'out_learnt[1]' has the greatest decision level of the
 |        rest of literals. There may be others from the same level though.
-|  
+|
 |________________________________________________________________________________________________@*/
 void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
 {
@@ -592,7 +638,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
                     out_learnt.push(q);
             }
         }
-        
+
         // Select next clause to look at:
         while (!seen[var(trail[index--])]);
         p     = trail[index+1];
@@ -611,7 +657,7 @@ void Solver::analyze(CRef confl, vec<Lit>& out_learnt, int& out_btlevel)
         for (i = j = 1; i < out_learnt.size(); i++)
             if (reason(var(out_learnt[i])) == CRef_Undef || !litRedundant(out_learnt[i]))
                 out_learnt[j++] = out_learnt[i];
-        
+
     }else if (ccmin_mode == 1){
         for (i = j = 1; i < out_learnt.size(); i++){
             Var x = var(out_learnt[i]);
@@ -669,11 +715,11 @@ bool Solver::litRedundant(Lit p)
         if (i < (uint32_t)c->size()){
             // Checking 'p'-parents 'l':
             Lit l = (*c)[i];
-            
+
             // Variable at level 0 or previously removable:
             if (level(var(l)) == 0 || seen[var(l)] == seen_source || seen[var(l)] == seen_removable){
                 continue; }
-            
+
             // Check variable can not be removed for some local reason:
             if (reason(var(l)) == CRef_Undef || seen[var(l)] == seen_failed){
                 stack.push(ShrinkStackElem(0, p));
@@ -682,7 +728,7 @@ bool Solver::litRedundant(Lit p)
                         seen[var(stack[i].l)] = seen_failed;
                         analyze_toclear.push(stack[i].l);
                     }
-                    
+
                 return false;
             }
 
@@ -700,7 +746,7 @@ bool Solver::litRedundant(Lit p)
 
             // Terminate with success if stack is empty:
             if (stack.size() == 0) break;
-            
+
             // Continue with top element on stack:
             i  = stack.last().i;
             p  = stack.last().l;
@@ -717,7 +763,7 @@ bool Solver::litRedundant(Lit p)
 /*_________________________________________________________________________________________________
 |
 |  analyzeFinal : (p : Lit)  ->  [void]
-|  
+|
 |  Description:
 |    Specialized analysis procedure to express the final conflict in terms of assumptions.
 |    Calculates the (possibly empty) set of assumptions that led to the assignment of 'p', and
@@ -767,11 +813,11 @@ void Solver::uncheckedEnqueue(Lit p, CRef from)
 /*_________________________________________________________________________________________________
 |
 |  propagate : [void]  ->  [Clause*]
-|  
+|
 |  Description:
 |    Propagates all enqueued facts. If a conflict arises, the conflicting clause is returned,
 |    otherwise CRef_Undef.
-|  
+|
 |    Post-conditions:
 |      * the propagation queue is empty, even if there was a conflict.
 |________________________________________________________________________________________________@*/
@@ -867,16 +913,16 @@ CRef Solver::propagate()
 /*_________________________________________________________________________________________________
 |
 |  reduceDB : ()  ->  [void]
-|  
+|
 |  Description:
 |    Remove half of the learnt clauses, minus the clauses locked by the current assignment. Locked
 |    clauses are clauses that are reason to some assignment. Binary clauses are never removed.
 |________________________________________________________________________________________________@*/
-struct reduceDB_lt { 
+struct reduceDB_lt {
     ClauseAllocator& ca;
     reduceDB_lt(ClauseAllocator& ca_) : ca(ca_) {}
-    bool operator () (CRef x, CRef y) { 
-        return ca[x].size() > 2 && (ca[y].size() == 2 || ca[x].activity() < ca[y].activity()); } 
+    bool operator () (CRef x, CRef y) {
+        return ca[x].size() > 2 && (ca[y].size() == 2 || ca[x].activity() < ca[y].activity()); }
 };
 void Solver::reduceDB()
 {
@@ -933,7 +979,7 @@ void Solver::rebuildOrderHeap()
 /*_________________________________________________________________________________________________
 |
 |  simplify : [void]  ->  [bool]
-|  
+|
 |  Description:
 |    Simplify the clause database according to the current top-level assigment. Currently, the only
 |    thing done here is the removal of satisfied clauses, but more things can be put here.
@@ -989,11 +1035,11 @@ bool Solver::simplify()
 /*_________________________________________________________________________________________________
 |
 |  search : (nof_conflicts : int) (params : const SearchParams&)  ->  [lbool]
-|  
+|
 |  Description:
-|    Search for a model the specified number of conflicts. 
+|    Search for a model the specified number of conflicts.
 |    NOTE! Use negative value for 'nof_conflicts' indicate infinity.
-|  
+|
 |  Output:
 |    'l_True' if a partial assigment that is consistent with respect to the clauseset is found. If
 |    all variables are decision variables, this means that the clause set is satisfiable. 'l_False'
@@ -1038,9 +1084,9 @@ lbool Solver::search(int nof_conflicts)
                 max_learnts             *= learntsize_inc;
 
                 if (verbosity >= 1)
-                    printf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n", 
-                           (int)conflicts, 
-                           (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals, 
+                    printf("| %9d | %7d %8d %8d | %8d %8d %6.0f | %6.3f %% |\n",
+                           (int)conflicts,
+                           (int)dec_vars - (trail_lim.size() == 0 ? trail.size() : trail_lim[0]), nClauses(), (int)clauses_literals,
                            (int)max_learnts, nLearnts(), (double)learnts_literals/nLearnts(), progressEstimate()*100);
             }
 
@@ -1204,14 +1250,14 @@ bool Solver::implies(const vec<Lit>& assumps, vec<Lit>& out)
             out.push(trail[j]);
     }else
         ret = false;
-    
+
     cancelUntil(0);
     return ret;
 }
 
 //=================================================================================================
 // Writing CNF to DIMACS:
-// 
+//
 // FIXME: this needs to be rewritten completely.
 
 static Var mapVar(Var x, vec<Var>& map, Var& max)
@@ -1260,7 +1306,7 @@ void Solver::toDimacs(FILE* f, const vec<Lit>& assumps)
     for (int i = 0; i < clauses.size(); i++)
         if (!satisfied(ca[clauses[i]]))
             cnt++;
-        
+
     for (int i = 0; i < clauses.size(); i++)
         if (!satisfied(ca[clauses[i]])){
             Clause& c = ca[clauses[i]];
@@ -1357,11 +1403,11 @@ void Solver::garbageCollect()
 {
     // Initialize the next region to a size corresponding to the estimated utilization degree. This
     // is not precise but should avoid some unnecessary reallocations for the new region:
-    ClauseAllocator to(ca.size() - ca.wasted()); 
+    ClauseAllocator to(ca.size() - ca.wasted());
 
     relocAll(to);
     if (verbosity >= 2)
-        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n", 
+        printf("|  Garbage collection:   %12d bytes => %12d bytes             |\n",
                ca.size()*ClauseAllocator::Unit_Size, to.size()*ClauseAllocator::Unit_Size);
     to.moveTo(ca);
 }
