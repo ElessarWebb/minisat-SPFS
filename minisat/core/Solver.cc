@@ -96,6 +96,7 @@ Solver::Solver() :
 
     // Statistics: (formerly in 'SolverStats')
     //
+  , heur_act_nl_usages(0),heur_rand_usages(0)
   , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
   , dec_vars(0), num_clauses(0), num_learnts(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
   , sympropagations(0), symconflicts(0), invertingSyms(0)
@@ -531,12 +532,16 @@ void Solver::testPrintTrail(){
 Lit Solver::pickBranchLit()
 {
 	Var next = var_Undef;
-
     // Random decision:
     if (drand(random_seed) < random_var_freq && !order_heap.empty()){
         next = order_heap[irand(random_seed,order_heap.size())];
-        if (value(next) == l_Undef && decision[next])
+
+        if (value(next) == l_Undef && decision[next]) {
             rnd_decisions++;
+
+        	// count use of heuristic
+			heur_rand_usages++;
+		}
     }
 
     // Activity based decision:
@@ -547,37 +552,43 @@ Lit Solver::pickBranchLit()
             break;
 
         // heuristics
-        } else {
+        // symmetry activity heuristic without lookahead
+        } else if ( drand(random_seed) < activity_nl_freq) {
 
-        	// symmetry activity heuristic without lookahead
-    		if (drand(random_seed) < activity_nl_freq) {
-				int best = -1;
-				int bestcount = -1;
-				for (int i = 0; i < order_heap.size() && i < 5; i++) {
-					int current;
-					Lit l = mkLit(order_heap[i], polarity[i]);
-					for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-						watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
-					}
-					current = checkActiveSymmetries();
-					for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-						watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
-					}
-					if (current > bestcount) {
-						best = order_heap[i];
-						bestcount = current;
-					}
+			int best = -1;
+			int bestcount = -1;
+			for (int i = 0; i < order_heap.size() && i < 5; i++) {
+				int current;
+				Lit l = mkLit(order_heap[i], polarity[i]);
+				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+					watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
 				}
+				current = checkActiveSymmetries();
+				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+					watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
+				}
+				if (current > bestcount) {
+					best = order_heap[i];
+					bestcount = current;
+				}
+			}
 
-				// best should also be not '-1'
-				// ? error checking -> NO FALLBACK (we need to know that our heuristic is used)
-				next = best;
-				order_heap.remove(best);
+			// best should also be not '-1'
+			// ? error checking -> NO FALLBACK (we need to know that our heuristic is used)
+			next = best;
+			order_heap.remove(best);
 
-			// original SP heuristic
-			} else {
-        		next = order_heap.removeMin();
-        	}
+        	if (value(next) == l_Undef && decision[next])
+        		// count use of heuristic
+				heur_act_nl_usages++;
+
+		// original SP heuristic
+		} else {
+        	next = order_heap.removeMin();
+
+        	if (value(next) == l_Undef && decision[next])
+        		// count use of heuristic
+				heur_original_sp_usages++;
         }
     }
 
@@ -1344,6 +1355,16 @@ void Solver::printStats() const
     printf("propagations          : %-12"PRIu64"   (%.0f /sec)\n", propagations, propagations/cpu_time);
     printf("sympropagations       : %-12"PRIu64"   (%.0f /sec)\n", sympropagations, sympropagations/cpu_time);
     printf("conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
+    printf("literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
+
+	// print usage of different heuristics
+    printf("\nHEURISTIC USAGES\n");
+    printf("random                : %-12"PRIu64"\n", heur_rand_usages );
+    printf("activity no lookahead : %-12"PRIu64"\n", heur_act_nl_usages );
+    printf("original sp           : %-12"PRIu64"\n", heur_original_sp_usages );
+
+	// hardware usage
+    printf("\n");
     if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
     printf("CPU time              : %g s\n", cpu_time);
 }

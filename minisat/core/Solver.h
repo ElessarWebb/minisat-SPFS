@@ -176,6 +176,7 @@ public:
 
     // Statistics: (read-only member variable)
     //
+    uint64_t heur_act_nl_usages,heur_rand_usages, heur_original_sp_usages;
     uint64_t solves, starts, decisions, rnd_decisions, propagations, conflicts;
 	uint64_t dec_vars, num_clauses, num_learnts, clauses_literals, learnts_literals, max_literals, tot_literals;
     uint64_t sympropagations, symconflicts, invertingSyms;
