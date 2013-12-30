@@ -43,8 +43,8 @@ static const char* _cat = "CORE";
 static DoubleOption  opt_var_decay         (_cat, "var-decay",   "The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
 static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
 static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
-static DoubleOption  opt_activity_nl_freq   (_cat, "activity-nl-freq",    "The frequency with which the decision heuristic bases it's decision on symmetry activity without lookahead", 0, DoubleRange(0, true, 1, true));
-static DoubleOption  opt_sym_count_freq   (_cat, "sym-count-freq",    "The frequency with which the decision heuristic bases it's decision on number of symmetries that variable occurs in", 0, DoubleRange(0, true, 1, true));
+static DoubleOption  opt_activity_nl_freq  (_cat, "activity-nl-freq",    "The frequency with which the decision heuristic bases it's decision on symmetry activity without lookahead", 0, DoubleRange(0, true, 1, true));
+static DoubleOption  opt_sym_count_freq    (_cat, "sym-count-freq",    "The frequency with which the decision heuristic bases it's decision on number of symmetries that variable occurs in", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep)", 2, IntRange(0, 2));
 static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
@@ -53,9 +53,9 @@ static BoolOption    opt_luby_restart      (_cat, "luby",        "Use the Luby r
 static IntOption     opt_restart_first     (_cat, "rfirst",      "The base restart interval", 100, IntRange(1, INT32_MAX));
 static DoubleOption  opt_restart_inc       (_cat, "rinc",        "Restart interval increase factor", 2, DoubleRange(1, false, HUGE_VAL, false));
 static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction of wasted memory allowed before a garbage collection is triggered",  0.20, DoubleRange(0, false, HUGE_VAL, false));
-static BoolOption    opt_storing	       (_cat, "storing",     "Store generated symmetry clauses for future use", true);
-static BoolOption    opt_inverting	       (_cat, "inverting-opt","Adjust initial variable order to make inverting symmetries faster", true);
-static BoolOption    opt_inactive	       (_cat, "inactive-opt","Conduct symmetry propagation for inactive symmetries", true);
+static BoolOption    opt_storing           (_cat, "storing",     "Store generated symmetry clauses for future use", true);
+static BoolOption    opt_inverting         (_cat, "inverting-opt",  "Adjust initial variable order to make inverting symmetries faster", true);
+static BoolOption    opt_inactive          (_cat, "inactive-opt","Conduct symmetry propagation for inactive symmetries", true);
 
 
 //=================================================================================================
@@ -71,7 +71,7 @@ Solver::Solver() :
   , clause_decay     (opt_clause_decay)
   , random_var_freq  (opt_random_var_freq)
   , activity_nl_freq (opt_activity_nl_freq)
-  , sym_count_freq 	 (opt_sym_count_freq)
+  , sym_count_freq   (opt_sym_count_freq)
   , random_seed      (opt_random_seed)
   , luby_restart     (opt_luby_restart)
   , ccmin_mode       (opt_ccmin_mode)
@@ -91,10 +91,10 @@ Solver::Solver() :
   , learntsize_adjust_start_confl (100)
   , learntsize_adjust_inc         (1.5)
 
-  , addPropagationClauses			(opt_storing)
-  , addConflictClauses				(opt_storing)
-  , varOrderOptimization			(opt_inverting)
-  , inactivePropagationOptimization	(opt_inactive)
+  , addPropagationClauses            (opt_storing)
+  , addConflictClauses                (opt_storing)
+  , varOrderOptimization            (opt_inverting)
+  , inactivePropagationOptimization    (opt_inactive)
 
     // Statistics: (formerly in 'SolverStats')
     //
@@ -155,9 +155,9 @@ Var Solver::newVar(lbool upol, bool dvar)
     decision .reserve(v);
     trail    .capacity(v+1);
     setDecisionVar(v, dvar);
-	decisionVars.push(false);
-	watcherSymmetries.push();
-	watcherSymmetries.push();
+    decisionVars.push(false);
+    watcherSymmetries.push();
+    watcherSymmetries.push();
     return v;
 }
 
@@ -252,16 +252,16 @@ bool Solver::satisfied(const Clause& c) const {
 //
 void Solver::cancelUntil(int level) {
     if (decisionLevel() > level){
-    	if(verbosity>=2){ printf("Backtrack occurs on level %i to level %i\n",decisionLevel(),level); }
+        if(verbosity>=2){ printf("Backtrack occurs on level %i to level %i\n",decisionLevel(),level); }
 
         for (int c = trail.size()-1; c >= trail_lim[level]; c--){
-        	if(verbosity>=2){ printf("Back: %i\n",toDimacs(trail[c])); }
+            if(verbosity>=2){ printf("Back: %i\n",toDimacs(trail[c])); }
 
-			int litIndex = toInt(trail[c]);
-			for(int i=watcherSymmetries[litIndex].size()-1; i>=0; --i){
-				watcherSymmetries[litIndex][i]->notifyBacktrack(trail[c]);
-			}
-			decisionVars[var(trail[c])]=false;
+            int litIndex = toInt(trail[c]);
+            for(int i=watcherSymmetries[litIndex].size()-1; i>=0; --i){
+                watcherSymmetries[litIndex][i]->notifyBacktrack(trail[c]);
+            }
+            decisionVars[var(trail[c])]=false;
 
             Var      x  = var(trail[c]);
             assigns [x] = l_Undef;
@@ -275,254 +275,254 @@ void Solver::cancelUntil(int level) {
     } }
 
 void Solver::addSymmetry(vec<Lit>& from, vec<Lit>& to){
-	assert(from.size()==to.size());
-	Symmetry* sym = new Symmetry(this, from, to, symmetries.size());
-	bool isInverting = false;
-	symmetries.push(sym);
-	for(int i=0; i<from.size(); ++i){
-		assert(from[i]!=to[i]);
-		watcherSymmetries[toInt(from[i])].push(sym);
+    assert(from.size()==to.size());
+    Symmetry* sym = new Symmetry(this, from, to, symmetries.size());
+    bool isInverting = false;
+    symmetries.push(sym);
+    for(int i=0; i<from.size(); ++i){
+        assert(from[i]!=to[i]);
+        watcherSymmetries[toInt(from[i])].push(sym);
 
-		if(from[i]==~to[i]){
-			isInverting = true;
-			if(varOrderOptimization){
-				varBumpActivity(var(from[i]),-var_inc);
-			}
-		}
-	}
-	if(isInverting){
-		++invertingSyms;
-	}
+        if(from[i]==~to[i]){
+            isInverting = true;
+            if(varOrderOptimization){
+                varBumpActivity(var(from[i]),-var_inc);
+            }
+        }
+    }
+    if(isInverting){
+        ++invertingSyms;
+    }
 
-	if(verbosity>=2){sym->print();}
-	assert(testSymmetry(sym));
+    if(verbosity>=2){sym->print();}
+    assert(testSymmetry(sym));
 }
 
 CRef Solver::propagateSymmetrical(Symmetry* sym, Lit l){
-	assert(value(sym->getSymmetrical(l))!=l_True);
+    assert(value(sym->getSymmetrical(l))!=l_True);
 
-	++sympropagations; //note: every symmetrical propagation either induces a conflict, or will be examined in the propagation queue (see the counter propagations)
+    ++sympropagations; //note: every symmetrical propagation either induces a conflict, or will be examined in the propagation queue (see the counter propagations)
 
-	implic.clear();
-	if(level(var(l))==0){
-		implic.push(sym->getSymmetrical(l));
-		implic.push(~l);
-	}else{
-		assert(reason(var(l))!=CRef_Undef);
-		sym->getSortedSymmetricalClause(ca[reason(var(l))], implic);
-	}
-	if(decisionLevel()>level(var(implic[1]))){
-		cancelUntil(level(var(implic[1]))); // Backtrack verplicht om de watches op het juiste moment op de clause te zetten
-	}
-	assert(value(implic[0])!=l_True);
-	assert(value(implic[1])==l_False);
+    implic.clear();
+    if(level(var(l))==0){
+        implic.push(sym->getSymmetrical(l));
+        implic.push(~l);
+    }else{
+        assert(reason(var(l))!=CRef_Undef);
+        sym->getSortedSymmetricalClause(ca[reason(var(l))], implic);
+    }
+    if(decisionLevel()>level(var(implic[1]))){
+        cancelUntil(level(var(implic[1]))); // Backtrack verplicht om de watches op het juiste moment op de clause te zetten
+    }
+    assert(value(implic[0])!=l_True);
+    assert(value(implic[1])==l_False);
 
-	CRef cr = ca.alloc(implic, true);
-	if(verbosity>=2){ printf("Symmetry clause added: "); testPrintClauseDimacs(cr); }
-	if(value(implic[0])==l_Undef){
-		assert( testPropagationClause(sym,l,implic) );
-		if(addPropagationClauses){
-			learnts.push(cr);
-			attachClause(cr);
-			claBumpActivity(ca[cr]);
-		}
-		uncheckedEnqueue(implic[0],cr);
-		return CRef_Undef;
-	}else{
-		assert(value(implic[0])==l_False);
-		assert( testConflictClause(sym,l,implic) );
-		if(addConflictClauses){
-			learnts.push(cr);
-			attachClause(cr);
-			claBumpActivity(ca[cr]);
-		}
-		++symconflicts;
-		return cr;
-	}
+    CRef cr = ca.alloc(implic, true);
+    if(verbosity>=2){ printf("Symmetry clause added: "); testPrintClauseDimacs(cr); }
+    if(value(implic[0])==l_Undef){
+        assert( testPropagationClause(sym,l,implic) );
+        if(addPropagationClauses){
+            learnts.push(cr);
+            attachClause(cr);
+            claBumpActivity(ca[cr]);
+        }
+        uncheckedEnqueue(implic[0],cr);
+        return CRef_Undef;
+    }else{
+        assert(value(implic[0])==l_False);
+        assert( testConflictClause(sym,l,implic) );
+        if(addConflictClauses){
+            learnts.push(cr);
+            attachClause(cr);
+            claBumpActivity(ca[cr]);
+        }
+        ++symconflicts;
+        return cr;
+    }
 }
 
 void Solver::notifySymmetries(Lit p){
-	//	printf("Enqueueing %i at level %i - isDecision: %i\n",toInt(p),decisionLevel(),isDecision(p));
-	for(int i=watcherSymmetries[toInt(p)].size()-1; i>=0 ; --i){
-		watcherSymmetries[toInt(p)][i]->notifyEnqueued(p);
-	}
-	assert( testActivityForSymmetries() );
+    //    printf("Enqueueing %i at level %i - isDecision: %i\n",toInt(p),decisionLevel(),isDecision(p));
+    for(int i=watcherSymmetries[toInt(p)].size()-1; i>=0 ; --i){
+        watcherSymmetries[toInt(p)][i]->notifyEnqueued(p);
+    }
+    assert( testActivityForSymmetries() );
 }
 
 int Solver::checkActiveSymmetries() {
-	int count = 0;
-	for (int i = 0; i < symmetries.size(); i++) {
-		if (symmetries[i]->isActive()) {
-			count++;
-		}
-	}
-	return count;
+    int count = 0;
+    for (int i = 0; i < symmetries.size(); i++) {
+        if (symmetries[i]->isActive()) {
+            count++;
+        }
+    }
+    return count;
 }
 
 // sym_testing
 
 bool Solver::testSymmetry(Symmetry* sym){
-	if(!debug){ return true; }
-	for(int i=0; i<nClauses(); ++i){
-		Clause& orig = ca[clauses[i]];
-		std::set<Lit> orig_set;
-		std::set<Lit> sym_set;
-		for(int j=0; j<orig.size();++j){
-			orig_set.insert(orig[j]);
-			sym_set.insert(sym->getSymmetrical(orig[j]));
-		}
-		bool hasSymmetrical = sym_set==orig_set;
-		for(int j=0; !hasSymmetrical && j<nClauses(); ++j){
-			Clause& symmetrical=ca[clauses[j]];
-			sym_set.clear();
-			if(orig.size()==symmetrical.size()){
-				for(int k=0; k<symmetrical.size(); ++k){
-					sym_set.insert(sym->getInverse(symmetrical[k]));
-				}
-				hasSymmetrical = sym_set==orig_set;
-			}
-		}
-		assert(hasSymmetrical);
-	}
-	return true;
+    if(!debug){ return true; }
+    for(int i=0; i<nClauses(); ++i){
+        Clause& orig = ca[clauses[i]];
+        std::set<Lit> orig_set;
+        std::set<Lit> sym_set;
+        for(int j=0; j<orig.size();++j){
+            orig_set.insert(orig[j]);
+            sym_set.insert(sym->getSymmetrical(orig[j]));
+        }
+        bool hasSymmetrical = sym_set==orig_set;
+        for(int j=0; !hasSymmetrical && j<nClauses(); ++j){
+            Clause& symmetrical=ca[clauses[j]];
+            sym_set.clear();
+            if(orig.size()==symmetrical.size()){
+                for(int k=0; k<symmetrical.size(); ++k){
+                    sym_set.insert(sym->getInverse(symmetrical[k]));
+                }
+                hasSymmetrical = sym_set==orig_set;
+            }
+        }
+        assert(hasSymmetrical);
+    }
+    return true;
 }
 
 bool Solver::testActivityForSymmetries(){
-	if(!debug){ return true; }
-	for(int i=0; i<symmetries.size(); ++i){
-		if(symmetries[i]->isPermanentlyInactive()!=symmetries[i]->testIsPermanentlyInactive(trail) ){
-			printf("ERROR: not sure if a symmetry is permanently inactive...\n");
-			printf("symmetry says: %i - ",symmetries[i]->isPermanentlyInactive() );
-			printf("test says: %i\n",symmetries[i]->testIsPermanentlyInactive(trail) );
-			symmetries[i]->print();
-			for(int j=0; j<trail.size(); ++j){
-				printf("%i | %i | %i\n",level(var(trail[j])),toInt(trail[j]),isDecision(trail[j]));
-			}
-			assert(false);
-		}
-		if(symmetries[i]->isActive()!=symmetries[i]->testIsActive(trail) ){
-			printf("ERROR: not sure if a symmetry is active...\n");
-			printf("symmetry says: %i - ",symmetries[i]->isActive() );
-			printf("test says: %i\n",symmetries[i]->testIsActive(trail) );
-			symmetries[i]->print();
-			for(int j=0; j<trail.size(); ++j){
-				printf("%i | %i | %i\n",level(var(trail[j])),toInt(trail[j]),isDecision(trail[j]));
-			}
-			assert(false);
-		}
-	}
-	return true;
+    if(!debug){ return true; }
+    for(int i=0; i<symmetries.size(); ++i){
+        if(symmetries[i]->isPermanentlyInactive()!=symmetries[i]->testIsPermanentlyInactive(trail) ){
+            printf("ERROR: not sure if a symmetry is permanently inactive...\n");
+            printf("symmetry says: %i - ",symmetries[i]->isPermanentlyInactive() );
+            printf("test says: %i\n",symmetries[i]->testIsPermanentlyInactive(trail) );
+            symmetries[i]->print();
+            for(int j=0; j<trail.size(); ++j){
+                printf("%i | %i | %i\n",level(var(trail[j])),toInt(trail[j]),isDecision(trail[j]));
+            }
+            assert(false);
+        }
+        if(symmetries[i]->isActive()!=symmetries[i]->testIsActive(trail) ){
+            printf("ERROR: not sure if a symmetry is active...\n");
+            printf("symmetry says: %i - ",symmetries[i]->isActive() );
+            printf("test says: %i\n",symmetries[i]->testIsActive(trail) );
+            symmetries[i]->print();
+            for(int j=0; j<trail.size(); ++j){
+                printf("%i | %i | %i\n",level(var(trail[j])),toInt(trail[j]),isDecision(trail[j]));
+            }
+            assert(false);
+        }
+    }
+    return true;
 }
 
 void Solver::testPrintSymmetricalClauseInfo(Symmetry* sym, Lit l, vec<Lit>& reason){
-	printf("Lit l: %i | sym(l): %i\n",toInt(l),toInt(sym->getSymmetrical(l)));
-	sym->print();
-	testPrintClause(reason);
+    printf("Lit l: %i | sym(l): %i\n",toInt(l),toInt(sym->getSymmetrical(l)));
+    sym->print();
+    testPrintClause(reason);
 }
 
 void Solver::testPrintClause(vec<Lit>& reason){
-	for(int i=0; i<reason.size(); ++i){
-		printf("%i|", toInt(reason[i]));
-		testPrintValue(reason[i]);
-		printf("|%i ", level(var(reason[i])) );
-	}printf("\n");
+    for(int i=0; i<reason.size(); ++i){
+        printf("%i|", toInt(reason[i]));
+        testPrintValue(reason[i]);
+        printf("|%i ", level(var(reason[i])) );
+    }printf("\n");
 }
 
 void Solver::testPrintClause(CRef clause){
-	Clause& reason = ca[clause];
-	for(int i=0; i<reason.size(); ++i){
-		printf("%i|", toInt(reason[i]));
-		testPrintValue(reason[i]);
-		printf("|%i ", level(var(reason[i])) );
-	}printf("\n");
+    Clause& reason = ca[clause];
+    for(int i=0; i<reason.size(); ++i){
+        printf("%i|", toInt(reason[i]));
+        testPrintValue(reason[i]);
+        printf("|%i ", level(var(reason[i])) );
+    }printf("\n");
 }
 
 void Solver::testPrintValue(Lit l){
-	if(value(l)==l_False){
-		printf("%c",'F');
-	}else if(value(l)==l_True){
-		printf("%c",'T');
-	}else if(value(l)==l_Undef){
-		printf("%c",'U');
-	}else{
-		printf("%c",'?');
-	}
+    if(value(l)==l_False){
+        printf("%c",'F');
+    }else if(value(l)==l_True){
+        printf("%c",'T');
+    }else if(value(l)==l_Undef){
+        printf("%c",'U');
+    }else{
+        printf("%c",'?');
+    }
 }
 
 void Solver::testPrintClauseDimacs(CRef clause){
-	Clause& reason = ca[clause];
-	for(int i=0; i<reason.size(); ++i){
-		printf("%i ", toDimacs(reason[i]));
-	}printf("\n");
+    Clause& reason = ca[clause];
+    for(int i=0; i<reason.size(); ++i){
+        printf("%i ", toDimacs(reason[i]));
+    }printf("\n");
 }
 
 int Solver::toDimacs(Lit l){
-	int result = var(l)+1;
-	if(sign(l)){
-		result *=-1;
-	}
-	return result;
+    int result = var(l)+1;
+    if(sign(l)){
+        result *=-1;
+    }
+    return result;
 }
 
 bool Solver::testConflictClause(Symmetry* sym, Lit l, vec<Lit>& reasonn){
-	if(!debug){ return true; }
-	assert(reasonn.size()>1);
-	assert(!isDecision(l));
-	for(int i=1; i<reasonn.size(); ++i){
-		if(level(var(reasonn[i]))>level(var(reasonn[0])) ){
-			printf("ERROR: level of literal %i is higher than first literal of clause.\n",toInt(reasonn[i]));
-			testPrintSymmetricalClauseInfo(sym,l,reasonn);
-			testPrintTrail();
-			assert(false);
-		}
-	}
-	for(int i=2; i<reasonn.size(); ++i){
-		if(level(var(reasonn[i]))>level(var(reasonn[1]))){
-			printf("ERROR: level of literal %i is higher than second literal of clause.\n",toInt(reasonn[i]));
-			testPrintSymmetricalClauseInfo(sym,l,reasonn);
-			testPrintTrail();
-			assert(false);
-		}
-	}
-	for(int i=0; i<reasonn.size(); ++i){
-		if(value(reasonn[i])!=l_False){
-			printf("ERROR: value of literal %i is not false.\n",toInt(reasonn[i]));
-			testPrintSymmetricalClauseInfo(sym,l,reasonn);
-			testPrintTrail();
-			assert(false);
-		}
-	}
-	return true;
+    if(!debug){ return true; }
+    assert(reasonn.size()>1);
+    assert(!isDecision(l));
+    for(int i=1; i<reasonn.size(); ++i){
+        if(level(var(reasonn[i]))>level(var(reasonn[0])) ){
+            printf("ERROR: level of literal %i is higher than first literal of clause.\n",toInt(reasonn[i]));
+            testPrintSymmetricalClauseInfo(sym,l,reasonn);
+            testPrintTrail();
+            assert(false);
+        }
+    }
+    for(int i=2; i<reasonn.size(); ++i){
+        if(level(var(reasonn[i]))>level(var(reasonn[1]))){
+            printf("ERROR: level of literal %i is higher than second literal of clause.\n",toInt(reasonn[i]));
+            testPrintSymmetricalClauseInfo(sym,l,reasonn);
+            testPrintTrail();
+            assert(false);
+        }
+    }
+    for(int i=0; i<reasonn.size(); ++i){
+        if(value(reasonn[i])!=l_False){
+            printf("ERROR: value of literal %i is not false.\n",toInt(reasonn[i]));
+            testPrintSymmetricalClauseInfo(sym,l,reasonn);
+            testPrintTrail();
+            assert(false);
+        }
+    }
+    return true;
 }
 
 bool Solver::testPropagationClause(Symmetry* sym, Lit l, vec<Lit>& reasonn){
-	if(!debug){ return true; }
-	assert(reasonn.size()>1);
-	assert(!isDecision(l));
-	assert(value(reasonn[0])==l_Undef);
-	for(int i=2; i<reasonn.size(); ++i){
-		if(level(var(reasonn[i]))>level(var(reasonn[1]))){
-			printf("ERROR: level of literal %i is higher than second literal of clause.\n",toInt(reasonn[i]));
-			testPrintSymmetricalClauseInfo(sym,l,reasonn);
-			testPrintTrail();
-			assert(false);
-		}
-	}
-	for(int i=1; i<reasonn.size(); ++i){
-		if(value(reasonn[i])!=l_False){
-			printf("ERROR: value of literal %i is not false.\n",toInt(reasonn[i]));
-			testPrintSymmetricalClauseInfo(sym,l,reasonn);
-			testPrintTrail();
-			assert(false);
-		}
-	}
-	return true;
+    if(!debug){ return true; }
+    assert(reasonn.size()>1);
+    assert(!isDecision(l));
+    assert(value(reasonn[0])==l_Undef);
+    for(int i=2; i<reasonn.size(); ++i){
+        if(level(var(reasonn[i]))>level(var(reasonn[1]))){
+            printf("ERROR: level of literal %i is higher than second literal of clause.\n",toInt(reasonn[i]));
+            testPrintSymmetricalClauseInfo(sym,l,reasonn);
+            testPrintTrail();
+            assert(false);
+        }
+    }
+    for(int i=1; i<reasonn.size(); ++i){
+        if(value(reasonn[i])!=l_False){
+            printf("ERROR: value of literal %i is not false.\n",toInt(reasonn[i]));
+            testPrintSymmetricalClauseInfo(sym,l,reasonn);
+            testPrintTrail();
+            assert(false);
+        }
+    }
+    return true;
 }
 
 void Solver::testPrintTrail(){
-	for(int j=0; j<trail.size(); ++j){
-		printf("%i|%i | %i\n",level(var(trail[j])),isDecision(trail[j]),toInt(trail[j]));
-	}
+    for(int j=0; j<trail.size(); ++j){
+        printf("%i|%i | %i\n",level(var(trail[j])),isDecision(trail[j]),toInt(trail[j]));
+    }
 }
 
 
@@ -533,7 +533,7 @@ void Solver::testPrintTrail(){
 
 Lit Solver::pickBranchLit()
 {
-	Var next = var_Undef;
+    Var next = var_Undef;
     // Random decision:
     if (drand(random_seed) < random_var_freq && !order_heap.empty()){
         next = order_heap[irand(random_seed,order_heap.size())];
@@ -541,14 +541,14 @@ Lit Solver::pickBranchLit()
         if (value(next) == l_Undef && decision[next]) {
             rnd_decisions++;
 
-        	// count use of heuristic
-			heur_rand_usages++;
-		}
+            // count use of heuristic
+            heur_rand_usages++;
+        }
     }
 
     // Activity based decision:
     while (next == var_Undef || value(next) != l_Undef || !decision[next]) {
-    	// empty heap
+        // empty heap
         if (order_heap.empty()){
             next = var_Undef;
             break;
@@ -557,66 +557,70 @@ Lit Solver::pickBranchLit()
         // symmetry activity heuristic without lookahead
         } else if ( drand(random_seed) < activity_nl_freq) {
 
-			int best = -1;
-			int bestcount = -1;
-			for (int i = 0; i < order_heap.size() && i < 5; i++) {
-				int current;
-				Lit l = mkLit(order_heap[i], polarity[i]);
-				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-					watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
-				}
-				current = checkActiveSymmetries();
-				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-					watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
-				}
+            int best = -1;
+            int bestcount = -1;
+            for (int i = 0; i < order_heap.size() && i < 5; i++) {
+                int current;
+                Lit l = mkLit(order_heap[i], polarity[i]);
+                for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+                    watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
+                }
+                current = checkActiveSymmetries();
+                for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+                    watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
+                }
 
-				if (current > bestcount) {
-					best = order_heap[i];
-					bestcount = current;
-				}
-			}
+                if (current > bestcount) {
+                    best = order_heap[i];
+                    bestcount = current;
+                }
+            }
 
-			// best should also be not '-1'
-			// TODO error checking -> NO FALLBACK (we need to know that our heuristic is used)
-			next = best;
-			order_heap.remove(best);
+            if (-1 == best) {
+                next = var_Undef;
+            } else {
+                next = best;
+                order_heap.remove(best);
 
-        	if (value(next) == l_Undef && decision[next])
-        		// count use of heuristic
-				heur_act_nl_usages++;
+                if (value(next) == l_Undef && decision[next])
+                    // count use of heuristic
+                    heur_act_nl_usages++;
+            }
 
-		// symmetry count heuristic
-		// (base decision on number of symmetries that variable occurs in; higher is better)
+        // symmetry count heuristic
+        // (base decision on number of symmetries that variable occurs in; higher is better)
         } else if ( drand(random_seed) < sym_count_freq) {
 
-        	int best = -1;
-        	int bestcount = -1;
-        	for (int i = 0; i < order_heap.size(); i++) {
-        		int current;
-        		current = watcherSymmetries[order_heap[i]].size();
+            int best = -1;
+            int bestcount = -1;
+            for (int i = 0; i < order_heap.size(); i++) {
+                int current;
+                current = watcherSymmetries[order_heap[i]].size();
 
-				if (current > bestcount) {
-					best = order_heap[i];
-					bestcount = current;
-				}
-        	}
+                if (current > bestcount) {
+                    best = order_heap[i];
+                    bestcount = current;
+                }
+            }
 
-			// best should also be not '-1'
-			// TODO error checking -> NO FALLBACK (we need to know that our heuristic is used)
-			next = best;
-			order_heap.remove(best);
+            if (-1 == best) {
+                next = var_Undef;
+            } else {
+                next = best;
+                order_heap.remove(best);
 
-        	if (value(next) == l_Undef && decision[next])
-        		// count use of heuristic
-				heur_sym_count_usages++;
+                if (value(next) == l_Undef && decision[next])
+                    // count use of heuristic
+                    heur_sym_count_usages++;
+            }
 
-		// original SP heuristic
-		} else {
-        	next = order_heap.removeMin();
+        // original SP heuristic
+        } else {
+            next = order_heap.removeMin();
 
-        	if (value(next) == l_Undef && decision[next])
-        		// count use of heuristic
-				heur_original_sp_usages++;
+            if (value(next) == l_Undef && decision[next])
+                // count use of heuristic
+                heur_original_sp_usages++;
         }
     }
 
@@ -916,30 +920,30 @@ CRef Solver::propagate()
         }
         ws.shrink(i - j);
 
-		// weakly active symmetry propagation: the condition qhead==trail.size() makes sure symmetry propagation is executed after unit propagation
-		for( int i=symmetries.size()-1; qhead==trail.size() && confl==CRef_Undef && i>=0; --i){
-			Symmetry* sym = symmetries[i];
-			Lit orig = lit_Undef;
-			if(sym->isActive()){
-				orig = sym->getNextToPropagate();
-				if(orig!=lit_Undef){
-					confl = propagateSymmetrical(sym,orig);
-				}
-			}
-		}
-		// weakly inactive symmetry propagation: the condition qhead==trail.size() makes sure symmetry propagation is executed after unit propagation
-		for( int i=symmetries.size()-1; inactivePropagationOptimization && qhead==trail.size() && confl==CRef_Undef && i>=0; --i){
-			Symmetry* sym = symmetries[i];
-			if(!sym->isActive()){
-				Lit orig = sym->getNextToPropagate();
-				if(orig!=lit_Undef){
-					confl = propagateSymmetrical(sym,orig);
-				}
-			}
-		}
-		if(confl!=CRef_Undef){
-			qhead=trail.size();
-		}
+        // weakly active symmetry propagation: the condition qhead==trail.size() makes sure symmetry propagation is executed after unit propagation
+        for( int i=symmetries.size()-1; qhead==trail.size() && confl==CRef_Undef && i>=0; --i){
+            Symmetry* sym = symmetries[i];
+            Lit orig = lit_Undef;
+            if(sym->isActive()){
+                orig = sym->getNextToPropagate();
+                if(orig!=lit_Undef){
+                    confl = propagateSymmetrical(sym,orig);
+                }
+            }
+        }
+        // weakly inactive symmetry propagation: the condition qhead==trail.size() makes sure symmetry propagation is executed after unit propagation
+        for( int i=symmetries.size()-1; inactivePropagationOptimization && qhead==trail.size() && confl==CRef_Undef && i>=0; --i){
+            Symmetry* sym = symmetries[i];
+            if(!sym->isActive()){
+                Lit orig = sym->getNextToPropagate();
+                if(orig!=lit_Undef){
+                    confl = propagateSymmetrical(sym,orig);
+                }
+            }
+        }
+        if(confl!=CRef_Undef){
+            qhead=trail.size();
+        }
 
     }
     propagations += num_props;
@@ -1383,16 +1387,16 @@ void Solver::printStats() const
     printf("propagations          : %-12"PRIu64"   (%.0f /sec)\n", propagations, propagations/cpu_time);
     printf("sympropagations       : %-12"PRIu64"   (%.0f /sec)\n", sympropagations, sympropagations/cpu_time);
     printf("conflict literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
-    printf("literals     : %-12"PRIu64"   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
+    printf("literals              : %-12"PRIu64"   (%4.2f %% deleted)\n", tot_literals, (max_literals - tot_literals)*100 / (double)max_literals);
 
-	// print usage of different heuristics
+    // print usage of different heuristics
     printf("\nHEURISTIC USAGES\n");
     printf("random                : %-12"PRIu64"\n", heur_rand_usages );
     printf("activity no lookahead : %-12"PRIu64"\n", heur_act_nl_usages );
     printf("original sp           : %-12"PRIu64"\n", heur_original_sp_usages );
     printf("sym count             : %-12"PRIu64"\n", heur_sym_count_usages );
 
-	// hardware usage
+    // hardware usage
     printf("\n");
     if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
     printf("CPU time              : %g s\n", cpu_time);
