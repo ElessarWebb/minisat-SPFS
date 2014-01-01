@@ -562,49 +562,25 @@ Lit Solver::pickBranchLit()
             int bestcount = -1;
 
             for (int i = 0; i < order_heap.size() && i < 5; i++) {
-                // TODO: HOWTO?
-                // BACKUP vars
-
-                // problem: one may not copy variables of type 'vec' (copy constructor is private for it is 'error prone')}
-                /*Heap<Var,VarOrderLt>    _order_heap     = order_heap;
-                vec<int>                _trail_lim      = trail_lim;
-                vec<bool>			    _decisionVars   = decisionVars;
-                vec<Lit>                _trail          = trail;
-                VMap<lbool>             _assigns        = assigns;
-                VMap<VarData>           _vardata        = vardata;
-                int                     _qhead          = qhead;
-                OccLists<Lit, vec<Watcher>, WatcherDeleted, MkIndexLit> 
-                                        _watches        = watches;
-                vec<Symmetry*>          _symmetries     = symmetries;
-                uint64_t                _propagations   = propagations;
-                int64_t                 _simpDB_props   = simpDB_props;//*/
-
-                // problem: this pointer is const so one can not rewrite it
-                /*const Solver            backup          = *this;//*/
-                // /BACKUP vars
-
                 int current;
+                int levelbefore = decisionLevel();
+
                 Lit l = mkLit(order_heap[i], polarity[i]);
                 for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-                    watcherSymmetries[order_heap[i]][j]->notifyEnqueued(l);
+                    watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
                 }
 
                 newDecisionLevel();
                 decisionVars[var(l)]=true;
-                uncheckedEnqueue(l);
 
-                CRef confl = propagate();
-                if (confl != CRef_Undef){
-                    // CONFLICT
-                }else{
-                    // NO CONFLICT
+                propagate();
+
+                current = checkActiveSymmetries();  
+              	cancelUntil(levelbefore);
+
+                for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+                    watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
                 }
-
-                current = checkActiveSymmetries();
-                
-                // RESTORE vars
-                // ...
-                // /RESTORE vars
 
                 if (current > bestcount) {
                     best = order_heap[i];
