@@ -576,14 +576,16 @@ Lit Solver::pickBranchLit()
 				}
 			}
 
-			// best should also be not '-1'
-			// TODO error checking -> NO FALLBACK (we need to know that our heuristic is used)
-			next = best;
-			order_heap.remove(best);
+			if ( -1 == best ) {
+				next = var_Undef;
+			} else {
+				next = best;
+				order_heap.remove(best);
 
-        	if (value(next) == l_Undef && decision[next])
-        		// count use of heuristic
-				heur_act_nl_usages++;
+        		if (value(next) == l_Undef && decision[next])
+        			// count use of heuristic
+					heur_act_nl_usages++;
+			}
 
 		// symmetry count heuristic
 		// (base decision on number of symmetries that variable occurs in; higher is better)
@@ -601,14 +603,16 @@ Lit Solver::pickBranchLit()
 				}
         	}
 
-			// best should also be not '-1'
-			// TODO error checking -> NO FALLBACK (we need to know that our heuristic is used)
-			next = best;
-			order_heap.remove(best);
+			if ( -1 == best ) {
+				next = var_Undef;
+			} else {
+				next = best;
+				order_heap.remove(best);
 
-        	if (value(next) == l_Undef && decision[next])
-        		// count use of heuristic
-				heur_sym_count_usages++;
+        		if (value(next) == l_Undef && decision[next])
+        			// count use of heuristic
+					heur_sym_count_usages++;
+			}
 
 		// original SP heuristic
 		} else {
