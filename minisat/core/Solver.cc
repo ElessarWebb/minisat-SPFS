@@ -43,7 +43,6 @@ static const char* _cat = "CORE";
 static DoubleOption  opt_var_decay         (_cat, "var-decay",   "The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
 static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
 static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
-static DoubleOption  opt_activity_look_freq(_cat, "activity-look-freq",    "The frequency with which the decision heuristic bases it's decision on symmetry activity with lookahead", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_activity_nl_freq  (_cat, "activity-nl-freq",    "The frequency with which the decision heuristic bases it's decision on symmetry activity without lookahead", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_sym_count_freq    (_cat, "sym-count-freq",    "The frequency with which the decision heuristic bases it's decision on number of symmetries that variable occurs in", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
@@ -71,7 +70,6 @@ Solver::Solver() :
   , var_decay        (opt_var_decay)
   , clause_decay     (opt_clause_decay)
   , random_var_freq  (opt_random_var_freq)
-  , activity_look_freq  (opt_activity_look_freq)
   , activity_nl_freq (opt_activity_nl_freq)
   , sym_count_freq   (opt_sym_count_freq)
   , random_seed      (opt_random_seed)
@@ -100,7 +98,7 @@ Solver::Solver() :
 
     // Statistics: (formerly in 'SolverStats')
     //
-  , heur_act_look_usages(0), heur_act_nl_usages(0), heur_rand_usages(0)
+  , heur_act_nl_usages(0),heur_rand_usages(0)
   , solves(0), starts(0), decisions(0), rnd_decisions(0), propagations(0), conflicts(0)
   , dec_vars(0), num_clauses(0), num_learnts(0), clauses_literals(0), learnts_literals(0), max_literals(0), tot_literals(0)
   , sympropagations(0), symconflicts(0), invertingSyms(0)
@@ -556,73 +554,6 @@ Lit Solver::pickBranchLit()
             break;
 
         // heuristics
-        // symmetry activity heuristic with lookahead
-        } else if ( drand(random_seed) < activity_look_freq) {
-            int best = -1;
-            int bestcount = -1;
-
-            for (int i = 0; i < order_heap.size() && i < 5; i++) {
-                // TODO: HOWTO?
-                // BACKUP vars
-
-                // problem: one may not copy variables of type 'vec' (copy constructor is private for it is 'error prone')}
-                /*Heap<Var,VarOrderLt>    _order_heap     = order_heap;
-                vec<int>                _trail_lim      = trail_lim;
-                vec<bool>			    _decisionVars   = decisionVars;
-                vec<Lit>                _trail          = trail;
-                VMap<lbool>             _assigns        = assigns;
-                VMap<VarData>           _vardata        = vardata;
-                int                     _qhead          = qhead;
-                OccLists<Lit, vec<Watcher>, WatcherDeleted, MkIndexLit> 
-                                        _watches        = watches;
-                vec<Symmetry*>          _symmetries     = symmetries;
-                uint64_t                _propagations   = propagations;
-                int64_t                 _simpDB_props   = simpDB_props;//*/
-
-                // problem: this pointer is const so one can not rewrite it
-                /*const Solver            backup          = *this;//*/
-                // /BACKUP vars
-
-                int current;
-                Lit l = mkLit(order_heap[i], polarity[i]);
-                for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-                    watcherSymmetries[order_heap[i]][j]->notifyEnqueued(l);
-                }
-
-                newDecisionLevel();
-                decisionVars[var(l)]=true;
-                uncheckedEnqueue(l);
-
-                CRef confl = propagate();
-                if (confl != CRef_Undef){
-                    // CONFLICT
-                }else{
-                    // NO CONFLICT
-                }
-
-                current = checkActiveSymmetries();
-                
-                // RESTORE vars
-                // ...
-                // /RESTORE vars
-
-                if (current > bestcount) {
-                    best = order_heap[i];
-                    bestcount = current;
-                }
-            }
-
-            if (-1 == best) {
-                next = var_Undef;
-            } else {
-                next = best;
-                order_heap.remove(best);
-
-                if (value(next) == l_Undef && decision[next])
-                    // count use of heuristic
-                    heur_act_look_usages++;
-            }
-
         // symmetry activity heuristic without lookahead
         } else if ( drand(random_seed) < activity_nl_freq) {
 
@@ -1214,7 +1145,6 @@ lbool Solver::search(int nof_conflicts)
             if (decisionLevel() == 0 && !simplify())
                 return l_False;
 
-
             if (learnts.size()-nAssigns() >= max_learnts)
                 // Reduce the set of learnt clauses:
                 reduceDB();
@@ -1462,7 +1392,6 @@ void Solver::printStats() const
     // print usage of different heuristics
     printf("\nHEURISTIC USAGES\n");
     printf("random                : %-12"PRIu64"\n", heur_rand_usages );
-    printf("activity w/ lookahead : %-12"PRIu64"\n", heur_act_look_usages );
     printf("activity no lookahead : %-12"PRIu64"\n", heur_act_nl_usages );
     printf("original sp           : %-12"PRIu64"\n", heur_original_sp_usages );
     printf("sym count             : %-12"PRIu64"\n", heur_sym_count_usages );
@@ -1472,7 +1401,6 @@ void Solver::printStats() const
     if (mem_used != 0) printf("Memory used           : %.2f MB\n", mem_used);
     printf("CPU time              : %g s\n", cpu_time);
 }
-
 
 
 //=================================================================================================
