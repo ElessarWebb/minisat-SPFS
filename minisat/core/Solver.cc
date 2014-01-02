@@ -276,7 +276,6 @@ void Solver::addSymmetry(vec<Lit>& from, vec<Lit>& to){
 	symmetries.push(sym);
 	for(int i=0; i<from.size(); ++i){
 		assert(from[i]!=to[i]);
-		sym->updateUsage();
 		watcherSymmetries[toInt(from[i])].push(sym);
 
 		if(from[i]==~to[i]){
@@ -871,6 +870,7 @@ CRef Solver::propagate()
 			if(sym->isActive()){
 				orig = sym->getNextToPropagate();
 				if(orig!=lit_Undef){
+					sym->updateUsage();
 					confl = propagateSymmetrical(sym,orig);
 				}
 			}
@@ -881,6 +881,7 @@ CRef Solver::propagate()
 			if(!sym->isActive()){
 				Lit orig = sym->getNextToPropagate();
 				if(orig!=lit_Undef){
+					sym->updateUsage();
 					confl = propagateSymmetrical(sym,orig);
 				}
 			}
