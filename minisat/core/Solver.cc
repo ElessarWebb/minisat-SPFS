@@ -546,9 +546,9 @@ Lit Solver::pickBranchLit()
 		}
     }
 
-    // Activity based decision:
     while (next == var_Undef || value(next) != l_Undef || !decision[next]) {
     	// empty heap
+    	// we're done
         if (order_heap.empty()){
             next = var_Undef;
             break;
@@ -561,17 +561,18 @@ Lit Solver::pickBranchLit()
 			int bestcount = -1;
 			for (int i = 0; i < order_heap.size() && i < 5; i++) {
 				int current;
-				Lit l = mkLit(order_heap[i], polarity[i]);
-				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-					watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
+				Var v = order_heap[i];
+				Lit l = mkLit(v, polarity[v]);
+				for(int j=watcherSymmetries[v].size()-1; j>=0 ; --j){
+					watcherSymmetries[v][j]->tempNotifyEnqueued(l);
 				}
 				current = checkActiveSymmetries();
-				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-					watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
+				for(int j=watcherSymmetries[v].size()-1; j>=0 ; --j){
+					watcherSymmetries[v][j]->tempNotifyBacktrack(l);
 				}
 
 				if (current > bestcount) {
-					best = order_heap[i];
+					best = v;
 					bestcount = current;
 				}
 			}
