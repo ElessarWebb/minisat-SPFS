@@ -479,6 +479,7 @@ private:
 	int amountNeededForActive;
 	int nextToPropagate;
 	Lit reasonOfPermInactive;
+	bool tempPermInactive;
 
 
 public:
@@ -511,6 +512,7 @@ public:
 		amountNeededForActive=0;
 		reasonOfPermInactive=lit_Undef;
 		nextToPropagate=0;
+		tempPermInactive=false;
 	}
 
 	void print(){
@@ -715,11 +717,17 @@ public:
 		if(s->isDecision(inverse)){
 			if(s->value(inverse)==l_True){
 				--amountNeededForActive;
+			} else {
+				reasonOfPermInactive=l;
+				tempPermInactive = true;
 			}
 		}
 		if(s->isDecision(l)){
 			if( s->value(symmetrical)==l_Undef ){
 				++amountNeededForActive;
+			} else {
+				reasonOfPermInactive=l;
+				tempPermInactive = true;
 			}
 		}
 	}
@@ -731,12 +739,19 @@ public:
 		//notifiedLits.pop();
 		//nextToPropagate=0;
 		if(isPermanentlyInactive()){
-			return;
+			if(reasonOfPermInactive==l && tempPermInactive==true){
+				reasonOfPermInactive=lit_Undef;
+				tempPermInactive = false;
+			}else{
+				return;
+			}
 		}
-		if( s->isDecision(l) && s->value(getSymmetrical(l))==l_Undef ){
+		Lit inverse = getInverse(l);
+		Lit symmetrical = getSymmetrical(l);
+		if( s->isDecision(l) && s->value(symmetrical)==l_Undef ){
 			--amountNeededForActive;
 		}
-		if( s->isDecision(getInverse(l)) && s->value(getInverse(l))==l_True){
+		if( s->isDecision(getInverse(l)) && s->value(inverse)==l_True){
 			++amountNeededForActive;
 		}
 	}
