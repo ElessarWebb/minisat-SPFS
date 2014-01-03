@@ -564,16 +564,20 @@ Lit Solver::pickBranchLit()
             for (int i = 0; i < order_heap.size() && i < 5; i++) {
                 int current;
                 int levelbefore = decisionLevel();
-
+                
                 Lit l = mkLit(order_heap[i], polarity[i]);
                 for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
                     watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
                 }
 
+                int decisionvarbefore = decisionVars[var(l)];
+
                 newDecisionLevel();
                 decisionVars[var(l)]=true;
 
                 propagate();
+
+                decisionVars[var(l)]=decisionvarbefore;
 
                 current = checkActiveSymmetries();  
               	cancelUntil(levelbefore);
