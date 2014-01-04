@@ -709,57 +709,6 @@ public:
 		}
 	}
 
-	void tempNotifyEnqueued(Lit l) {
-		//assert(getSymmetrical(l)!=l);
-		//assert(s->value(l)==l_True);
-		//notifiedLits.push(l);
-		if(isPermanentlyInactive()){
-			return;
-		}
-		Lit inverse = getInverse(l);
-		Lit symmetrical = getSymmetrical(l);
-		if(s->isDecision(inverse)){
-			if(s->value(inverse)==l_True){
-				--amountNeededForActive;
-			} else {
-				reasonOfPermInactive=l;
-				tempPermInactive = true;
-			}
-		}
-		if(s->isDecision(l)){
-			if( s->value(symmetrical)==l_Undef ){
-				++amountNeededForActive;
-			} else {
-				reasonOfPermInactive=l;
-				tempPermInactive = true;
-			}
-		}
-	}
-
-	void tempNotifyBacktrack(Lit l) {
-		//assert(getSymmetrical(l)!=l);
-		//assert(s->value(var(l))!=l_Undef);
-		//assert(notifiedLits.size()>0 && notifiedLits.last()==l);
-		//notifiedLits.pop();
-		//nextToPropagate=0;
-		if(isPermanentlyInactive()){
-			if(reasonOfPermInactive==l && tempPermInactive==true){
-				reasonOfPermInactive=lit_Undef;
-				tempPermInactive = false;
-			}else{
-				return;
-			}
-		}
-		Lit inverse = getInverse(l);
-		Lit symmetrical = getSymmetrical(l);
-		if( s->isDecision(l) && s->value(symmetrical)==l_Undef ){
-			--amountNeededForActive;
-		}
-		if( s->isDecision(getInverse(l)) && s->value(inverse)==l_True){
-			++amountNeededForActive;
-		}
-	}
-
 	bool isActive(){
 		return amountNeededForActive==0 && !isPermanentlyInactive(); // Laatste test is nodig voor phase change symmetries
 	}

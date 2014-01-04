@@ -623,22 +623,37 @@ Lit Solver::pickBranchLit()
 
 			int best = -1;
 			int bestcount = -1;
-			for (int i = 0; i < order_heap.size() && i < 5; i++) {
-				int current;
-				Lit l = mkLit(order_heap[i], polarity[i]);
-				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-					watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
-				}
-				current = checkActiveSymmetries();
-				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-					watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
+            for (int i = 0; i < order_heap.size() && i < 5; i++) {
+                int current;
+                int levelbefore = decisionLevel();
+
+				// do decision + propagation phase
+                Lit l = mkLit(order_heap[i], polarity[i]);
+                int decisionvarbefore = decisionVars[var(l)];
+
+				// uh, don't use variables that are already assigned
+				// somehow this causes a segfault
+				if (value(order_heap[i]) != l_Undef) {
+					order_heap.remove(order_heap[i]);
+					continue;
 				}
 
-				if (current > bestcount) {
-					best = order_heap[i];
-					bestcount = current;
-				}
-			}
+                newDecisionLevel();
+                decisionVars[var(l)]=true;
+            	uncheckedEnqueue(l);
+
+				// check symmetry activity
+                current = checkActiveSymmetries();
+
+				// undo it
+                decisionVars[var(l)]=decisionvarbefore;
+              	cancelUntil(levelbefore);
+
+                if (current > bestcount) {
+                    best = order_heap[i];
+                    bestcount = current;
+                }
+            }
 
 			if ( -1 == best ) {
 				next = var_Undef;
