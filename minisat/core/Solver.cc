@@ -42,7 +42,8 @@ static const char* _cat = "CORE";
 
 static DoubleOption  opt_var_decay         (_cat, "var-decay",   "The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
 static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
-static DoubleOption  opt_random_var_freq    (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
+static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
+static DoubleOption  opt_activity_look_freq(_cat, "activity-look-freq",    "The frequency with which the decision heuristic bases it's decision on symmetry activity with lookahead", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_activity_nl_freq   (_cat, "activity-nl-freq",    "The frequency with which the decision heuristic bases it's decision on symmetry activity without lookahead", 0, DoubleRange(0, true, 1, true));
 static BoolOption    opt_sym_var_bump      (_cat, "sym-var-bump",    "Adjust initial variable order based on variable occurance in symmetries", false);
 static BoolOption    opt_sym_usage_var_bump(_cat, "sym-usage-var-bump",    "Adjust variable order based on variable occurance in symmetries usage during propagation", false);
@@ -74,6 +75,7 @@ Solver::Solver() :
   , sym_usage_var_bump (opt_sym_usage_var_bump)
   , sym_var_bump	 (opt_sym_var_bump)
   , random_var_freq  (opt_random_var_freq)
+  , activity_look_freq  (opt_activity_look_freq)
   , activity_nl_freq (opt_activity_nl_freq)
   , sym_count_freq 	 (opt_sym_count_freq)
   , random_seed      (opt_random_seed)
@@ -556,6 +558,7 @@ Lit Solver::pickBranchLit()
 		}
     }
 
+    // Activity based decision:
     while (next == var_Undef || value(next) != l_Undef || !decision[next]) {
     	// empty heap
     	// we're done
@@ -564,6 +567,53 @@ Lit Solver::pickBranchLit()
             break;
 
         // heuristics
+        // symmetry activity heuristic with lookahead
+        } else if ( drand(random_seed) < activity_look_freq) {
+            int best = -1;
+            int bestcount = -1;
+
+            for (int i = 0; i < order_heap.size() && i < 5; i++) {
+                int current;
+                int levelbefore = decisionLevel();
+                
+                Lit l = mkLit(order_heap[i], polarity[i]);
+                for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+                    watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
+                }
+
+                int decisionvarbefore = decisionVars[var(l)];
+
+                newDecisionLevel();
+                decisionVars[var(l)]=true;
+
+                propagate();
+
+                decisionVars[var(l)]=decisionvarbefore;
+
+                current = checkActiveSymmetries();  
+              	cancelUntil(levelbefore);
+
+                for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+                    watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
+                }
+
+                if (current > bestcount) {
+                    best = order_heap[i];
+                    bestcount = current;
+                }
+            }
+
+            if (-1 == best) {
+                next = var_Undef;
+            } else {
+                next = best;
+                order_heap.remove(best);
+
+                if (value(next) == l_Undef && decision[next])
+                    // count use of heuristic
+                    heur_act_look_usages++;
+            }
+
         // symmetry activity heuristic without lookahead
         } else if ( drand(random_seed) < activity_nl_freq) {
 
@@ -571,18 +621,17 @@ Lit Solver::pickBranchLit()
 			int bestcount = -1;
 			for (int i = 0; i < order_heap.size() && i < 5; i++) {
 				int current;
-				Var v = order_heap[i];
-				Lit l = mkLit(v, polarity[v]);
-				for(int j=watcherSymmetries[v].size()-1; j>=0 ; --j){
-					watcherSymmetries[v][j]->tempNotifyEnqueued(l);
+				Lit l = mkLit(order_heap[i], polarity[i]);
+				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+					watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
 				}
 				current = checkActiveSymmetries();
-				for(int j=watcherSymmetries[v].size()-1; j>=0 ; --j){
-					watcherSymmetries[v][j]->tempNotifyBacktrack(l);
+				for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
+					watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
 				}
 
 				if (current > bestcount) {
-					best = v;
+					best = order_heap[i];
 					bestcount = current;
 				}
 			}
@@ -638,10 +687,10 @@ Lit Solver::pickBranchLit()
     // Choose polarity based on different polarity modes (global or per-variable):
     if (next == var_Undef)
         return lit_Undef;
-    /*else if (user_pol[next] != l_Undef)
+    else if (user_pol[next] != l_Undef)
         return mkLit(next, user_pol[next] == l_True);
     else if (rnd_pol)
-        return mkLit(next, drand(random_seed) < 0.5);*/
+        return mkLit(next, drand(random_seed) < 0.5);
     else
         return mkLit(next, polarity[next]);
 }
@@ -1409,6 +1458,7 @@ void Solver::printStats() const
 	// print usage of different heuristics
     printf("\nHEURISTIC USAGES\n");
     printf("random                : %-12"PRIu64"\n", heur_rand_usages );
+    printf("activity w/ lookahead : %-12"PRIu64"\n", heur_act_look_usages );
     printf("activity no lookahead : %-12"PRIu64"\n", heur_act_nl_usages );
     printf("original sp           : %-12"PRIu64"\n", heur_original_sp_usages );
     printf("sym count             : %-12"PRIu64"\n", heur_sym_count_usages );

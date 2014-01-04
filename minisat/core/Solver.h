@@ -154,6 +154,7 @@ public:
     bool      sym_usage_var_bump;
     bool      sym_var_bump;
     double    random_var_freq;
+    double    activity_look_freq;
     double    activity_nl_freq;
     double    sym_count_freq;
     double    random_seed;
@@ -179,7 +180,7 @@ public:
 
     // Statistics: (read-only member variable)
     //
-    uint64_t heur_act_nl_usages,heur_rand_usages, heur_original_sp_usages, heur_sym_count_usages;
+    uint64_t heur_act_look_usages,heur_act_nl_usages,heur_rand_usages, heur_original_sp_usages, heur_sym_count_usages;
     uint64_t solves, starts, decisions, rnd_decisions, propagations, conflicts;
 	uint64_t dec_vars, num_clauses, num_learnts, clauses_literals, learnts_literals, max_literals, tot_literals;
     uint64_t sympropagations, symconflicts, invertingSyms;
