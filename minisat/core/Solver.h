@@ -658,7 +658,6 @@ public:
 				}
 			}
 		}
-		printf( "%d", reason );
 		return true;
 	}
 

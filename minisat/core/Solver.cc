@@ -595,12 +595,12 @@ Lit Solver::pickBranchLit()
 
 				// check symmetry activity
                 current = checkActiveSymmetries();
-                printf( "Option: %d\n", current );
 
 				// undo it
                 decisionVars[var(l)]=decisionvarbefore;
               	cancelUntil(levelbefore);
 
+				// we might as well directly check for conflicts
                 if ((confl == CRef_Undef || best == -1) && current > bestcount) {
                     best = order_heap[i];
                     bestcount = current;
@@ -610,7 +610,6 @@ Lit Solver::pickBranchLit()
             if (-1 == best) {
                 next = var_Undef;
             } else {
-            	printf( ">> Best: %d\n\n", bestcount );
                 next = best;
                 order_heap.remove(best);
 
