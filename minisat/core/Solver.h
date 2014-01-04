@@ -644,7 +644,8 @@ public:
 		if(s->level(var(l))==0){
 			return true;
 		}
-		Clause& cl = s->ca[s->reason(var(l))];
+		CRef reason = s->reason(var(l));
+		Clause& cl = s->ca[reason];
 		bool noUndefYet = true;
 		for(int i=0; i<cl.size(); ++i){
 			if(s->value(getSymmetrical(cl[i]))==l_True){
@@ -657,6 +658,7 @@ public:
 				}
 			}
 		}
+		printf( "%d", reason );
 		return true;
 	}
 

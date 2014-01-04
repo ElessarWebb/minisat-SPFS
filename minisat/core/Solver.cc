@@ -575,29 +575,33 @@ Lit Solver::pickBranchLit()
             for (int i = 0; i < order_heap.size() && i < 5; i++) {
                 int current;
                 int levelbefore = decisionLevel();
-                
-                Lit l = mkLit(order_heap[i], polarity[i]);
-                for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-                    watcherSymmetries[order_heap[i]][j]->tempNotifyEnqueued(l);
-                }
 
+				// do decision + propagation phase
+                Lit l = mkLit(order_heap[i], polarity[i]);
                 int decisionvarbefore = decisionVars[var(l)];
+
+				// uh, don't use variables that are already assigned
+				// somehow this causes a segfault
+				if (value(order_heap[i]) != l_Undef) {
+					order_heap.remove(order_heap[i]);
+					continue;
+				}
 
                 newDecisionLevel();
                 decisionVars[var(l)]=true;
+            	uncheckedEnqueue(l);
 
-                propagate();
+                CRef confl = propagate();
 
+				// check symmetry activity
+                current = checkActiveSymmetries();
+                printf( "Option: %d\n", current );
+
+				// undo it
                 decisionVars[var(l)]=decisionvarbefore;
-
-                current = checkActiveSymmetries();  
               	cancelUntil(levelbefore);
 
-                for(int j=watcherSymmetries[order_heap[i]].size()-1; j>=0 ; --j){
-                    watcherSymmetries[order_heap[i]][j]->tempNotifyBacktrack(l);
-                }
-
-                if (current > bestcount) {
+                if ((confl == CRef_Undef || best == -1) && current > bestcount) {
                     best = order_heap[i];
                     bestcount = current;
                 }
@@ -606,6 +610,7 @@ Lit Solver::pickBranchLit()
             if (-1 == best) {
                 next = var_Undef;
             } else {
+            	printf( ">> Best: %d\n\n", bestcount );
                 next = best;
                 order_heap.remove(best);
 
@@ -673,8 +678,6 @@ Lit Solver::pickBranchLit()
         			// count use of heuristic
 					heur_sym_count_usages++;
 			}
-
-		// original SP heuristic
 		} else {
         	next = order_heap.removeMin();
 
@@ -937,10 +940,6 @@ CRef Solver::propagate()
 
         if(verbosity>=2){
         	printf("Prop %i: %i\n",decisionLevel(),toDimacs(p));
-        	int activesyms = checkActiveSymmetries();
-        	int totalsyms = nSymmetries();
-        	double relativesyms = (double)activesyms/(double)totalsyms * 100.0;
-        	printf("ActiveSyms: %i\nTotalSyms: %i\nRelativeSyms: %f\n", activesyms, totalsyms, relativesyms);
         }
 
         for (i = j = (Watcher*)ws, end = i + ws.size();  i != end;){
@@ -1169,6 +1168,15 @@ lbool Solver::search(int nof_conflicts)
     starts++;
 
     for (;;){
+
+		// keep track of number of active symmetries
+        if(verbosity>=2){
+        	int activesyms = checkActiveSymmetries();
+        	int totalsyms = nSymmetries();
+        	double relativesyms = (double)activesyms/(double)totalsyms * 100.0;
+        	printf("ActiveSyms: %i\nTotalSyms: %i\nRelativeSyms: %f\n", activesyms, totalsyms, relativesyms);
+        }
+
         CRef confl = propagate();
         if (confl != CRef_Undef){
             // CONFLICT
