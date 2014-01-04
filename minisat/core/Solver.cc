@@ -935,7 +935,13 @@ CRef Solver::propagate()
         Watcher        *i, *j, *end;
         num_props++;
 
-        if(verbosity>=2){ printf("Prop %i: %i\n",decisionLevel(),toDimacs(p)); }
+        if(verbosity>=2){
+        	printf("Prop %i: %i\n",decisionLevel(),toDimacs(p));
+        	int activesyms = checkActiveSymmetries();
+        	int totalsyms = nSymmetries();
+        	double relativesyms = (double)activesyms/(double)totalsyms * 100.0;
+        	printf("ActiveSyms: %i\nTotalSyms: %i\nRelativeSyms: %f\n", activesyms, totalsyms, relativesyms);
+        }
 
         for (i = j = (Watcher*)ws, end = i + ws.size();  i != end;){
             // Try to avoid inspecting the clause:
