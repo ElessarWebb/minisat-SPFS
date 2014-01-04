@@ -151,6 +151,8 @@ public:
     int       verbosity;
     double    var_decay;
     double    clause_decay;
+    bool      sym_usage_var_bump;
+    bool      sym_var_bump;
     double    random_var_freq;
     double    activity_nl_freq;
     double    sym_count_freq;
@@ -794,6 +796,14 @@ public:
 			}
 		}
 		return false;
+	}
+
+	void bumpVars(){
+		for(int i=0; i < sym.size(); ++i){
+			if(sym[i]!=toLit(i)){
+				s->varBumpActivity(var(toLit(i)), s->var_inc);
+			}
+		}
 	}
 };
 

@@ -42,9 +42,11 @@ static const char* _cat = "CORE";
 
 static DoubleOption  opt_var_decay         (_cat, "var-decay",   "The variable activity decay factor",            0.95,     DoubleRange(0, false, 1, false));
 static DoubleOption  opt_clause_decay      (_cat, "cla-decay",   "The clause activity decay factor",              0.999,    DoubleRange(0, false, 1, false));
-static DoubleOption  opt_random_var_freq   (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
+static DoubleOption  opt_random_var_freq    (_cat, "rnd-freq",    "The frequency with which the decision heuristic tries to choose a random variable", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_activity_nl_freq   (_cat, "activity-nl-freq",    "The frequency with which the decision heuristic bases it's decision on symmetry activity without lookahead", 0, DoubleRange(0, true, 1, true));
-static DoubleOption  opt_sym_count_freq   (_cat, "sym-count-freq",    "The frequency with which the decision heuristic bases it's decision on number of symmetries that variable occurs in", 0, DoubleRange(0, true, 1, true));
+static BoolOption    opt_sym_var_bump      (_cat, "sym-var-bump",    "Adjust initial variable order based on variable occurance in symmetries", false);
+static BoolOption    opt_sym_usage_var_bump(_cat, "sym-usage-var-bump",    "Adjust variable order based on variable occurance in symmetries usage during propagation", false);
+static DoubleOption  opt_sym_count_freq    (_cat, "sym-count-freq",    "The frequency with which the decision heuristic bases it's decision on number of symmetries that variable occurs in", 0, DoubleRange(0, true, 1, true));
 static DoubleOption  opt_random_seed       (_cat, "rnd-seed",    "Used by the random variable selection",         91648253, DoubleRange(0, false, HUGE_VAL, false));
 static IntOption     opt_ccmin_mode        (_cat, "ccmin-mode",  "Controls conflict clause minimization (0=none, 1=basic, 2=deep)", 2, IntRange(0, 2));
 static IntOption     opt_phase_saving      (_cat, "phase-saving", "Controls the level of phase saving (0=none, 1=limited, 2=full)", 2, IntRange(0, 2));
@@ -69,6 +71,8 @@ Solver::Solver() :
     verbosity        (0)
   , var_decay        (opt_var_decay)
   , clause_decay     (opt_clause_decay)
+  , sym_usage_var_bump (opt_sym_usage_var_bump)
+  , sym_var_bump	 (opt_sym_var_bump)
   , random_var_freq  (opt_random_var_freq)
   , activity_nl_freq (opt_activity_nl_freq)
   , sym_count_freq 	 (opt_sym_count_freq)
@@ -287,6 +291,12 @@ void Solver::addSymmetry(vec<Lit>& from, vec<Lit>& to){
 			isInverting = true;
 			if(varOrderOptimization){
 				varBumpActivity(var(from[i]),-var_inc);
+			}
+		} else {
+			// non inverting symmetry
+			// bump it if sym_var_bump is set
+			if(sym_var_bump){
+				varBumpActivity(var(from[i]),var_inc);
 			}
 		}
 	}
@@ -628,10 +638,10 @@ Lit Solver::pickBranchLit()
     // Choose polarity based on different polarity modes (global or per-variable):
     if (next == var_Undef)
         return lit_Undef;
-    else if (user_pol[next] != l_Undef)
+    /*else if (user_pol[next] != l_Undef)
         return mkLit(next, user_pol[next] == l_True);
     else if (rnd_pol)
-        return mkLit(next, drand(random_seed) < 0.5);
+        return mkLit(next, drand(random_seed) < 0.5);*/
     else
         return mkLit(next, polarity[next]);
 }
@@ -929,6 +939,12 @@ CRef Solver::propagate()
 				orig = sym->getNextToPropagate();
 				if(orig!=lit_Undef){
 					confl = propagateSymmetrical(sym,orig);
+
+					// we can bump variables occuring in used symmetries
+					// to make these symmetries --more-- active
+					if(sym_usage_var_bump){
+						sym->bumpVars();
+					}
 				}
 			}
 		}
