@@ -577,12 +577,13 @@ Lit Solver::pickBranchLit()
                 int levelbefore = decisionLevel();
 
 				// do decision + propagation phase
-                Lit l = mkLit(order_heap[i], polarity[i]);
+                Lit l = mkLit(order_heap[i], polarity[order_heap[i]]);
 
 				// uh, don't use variables that are already assigned
 				// somehow this causes a segfault
 				if (value(order_heap[i]) != l_Undef) {
 					order_heap.remove(order_heap[i]);
+					i--;
 					continue;
 				}
 
@@ -633,12 +634,13 @@ Lit Solver::pickBranchLit()
                 int levelbefore = decisionLevel();
 
 				// do decision + propagation phase
-                Lit l = mkLit(order_heap[i], polarity[i]);
+                Lit l = mkLit(order_heap[i], polarity[order_heap[i]]);
 
 				// uh, don't use variables that are already assigned
 				// somehow this causes a segfault
 				if (value(order_heap[i]) != l_Undef) {
 					order_heap.remove(order_heap[i]);
+					i--;
 					continue;
 				}
 
