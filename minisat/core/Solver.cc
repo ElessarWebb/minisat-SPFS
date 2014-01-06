@@ -578,7 +578,6 @@ Lit Solver::pickBranchLit()
 
 				// do decision + propagation phase
                 Lit l = mkLit(order_heap[i], polarity[i]);
-                int decisionvarbefore = decisionVars[var(l)];
 
 				// uh, don't use variables that are already assigned
 				// somehow this causes a segfault
@@ -595,15 +594,21 @@ Lit Solver::pickBranchLit()
 
 				// check symmetry activity
                 current = checkActiveSymmetries();
+                if(verbosity>=2){
+                	printf( "Branch option: %d active for variable %d\n", current, var(l));
+                }
 
 				// undo it
-                decisionVars[var(l)]=decisionvarbefore;
+                current = checkActiveSymmetries();
               	cancelUntil(levelbefore);
 
 				// we might as well directly check for conflicts
                 if ((confl == CRef_Undef || best == -1) && current > bestcount) {
                     best = order_heap[i];
                     bestcount = current;
+                	if(verbosity>=2){
+                		printf( "Chose variable %d with %d active symmetries\n", var(l), best);
+                	}
                 }
             }
 
@@ -629,7 +634,6 @@ Lit Solver::pickBranchLit()
 
 				// do decision + propagation phase
                 Lit l = mkLit(order_heap[i], polarity[i]);
-                int decisionvarbefore = decisionVars[var(l)];
 
 				// uh, don't use variables that are already assigned
 				// somehow this causes a segfault
@@ -646,7 +650,6 @@ Lit Solver::pickBranchLit()
                 current = checkActiveSymmetries();
 
 				// undo it
-                decisionVars[var(l)]=decisionvarbefore;
               	cancelUntil(levelbefore);
 
                 if (current > bestcount) {
