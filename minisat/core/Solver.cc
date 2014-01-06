@@ -1182,14 +1182,13 @@ lbool Solver::search(int nof_conflicts)
     starts++;
 
     for (;;){
-
-		// keep track of number of active symmetries
-        if(verbosity>=2){
-        	int activesyms = checkActiveSymmetries();
-        	int totalsyms = nSymmetries();
-        	double relativesyms = (double)activesyms/(double)totalsyms * 100.0;
-        	printf("ActiveSyms: %i\nTotalSyms: %i\nRelativeSyms: %f\n", activesyms, totalsyms, relativesyms);
-        }
+    	// keep track of number of active symmetries
+		if(false){
+			int activesyms = checkActiveSymmetries();
+			int totalsyms = nSymmetries();
+			double relativesyms = (double)activesyms/(double)totalsyms * 100.0;
+			printf("ActiveSyms: %i\nTotalSyms: %i\nRelativeSyms: %f\n", activesyms, totalsyms, relativesyms);
+		}
 
         CRef confl = propagate();
         if (confl != CRef_Undef){
