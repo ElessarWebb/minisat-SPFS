@@ -59,6 +59,7 @@ static DoubleOption  opt_garbage_frac      (_cat, "gc-frac",     "The fraction o
 static BoolOption    opt_storing	       (_cat, "storing",     "Store generated symmetry clauses for future use", true);
 static BoolOption    opt_inverting	       (_cat, "inverting-opt","Adjust initial variable order to make inverting symmetries faster", true);
 static BoolOption    opt_inactive	       (_cat, "inactive-opt","Conduct symmetry propagation for inactive symmetries", true);
+static BoolOption    opt_print_activity		   (_cat, "print-activity","Print the symmetry activity during solving", false);
 
 
 //=================================================================================================
@@ -78,6 +79,7 @@ Solver::Solver() :
   , activity_look_freq  (opt_activity_look_freq)
   , activity_nl_freq (opt_activity_nl_freq)
   , sym_count_freq 	 (opt_sym_count_freq)
+  , print_activity   (opt_print_activity)
   , random_seed      (opt_random_seed)
   , luby_restart     (opt_luby_restart)
   , ccmin_mode       (opt_ccmin_mode)
@@ -1187,11 +1189,9 @@ lbool Solver::search(int nof_conflicts)
 
     for (;;){
     	// keep track of number of active symmetries
-		if(false){
+		if(print_activity){
 			int activesyms = checkActiveSymmetries();
-			int totalsyms = nSymmetries();
-			double relativesyms = (double)activesyms/(double)totalsyms * 100.0;
-			printf("ActiveSyms: %i\nTotalSyms: %i\nRelativeSyms: %f\n", activesyms, totalsyms, relativesyms);
+			printf("ActiveSyms: %i\n", activesyms);
 		}
 
         CRef confl = propagate();

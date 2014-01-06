@@ -157,6 +157,7 @@ public:
     double    activity_look_freq;
     double    activity_nl_freq;
     double    sym_count_freq;
+    bool 	  print_activity;
     double    random_seed;
     bool      luby_restart;
     int       ccmin_mode;         // Controls conflict clause minimization (0=none, 1=basic, 2=deep).
