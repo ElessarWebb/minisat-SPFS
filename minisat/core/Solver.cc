@@ -600,7 +600,6 @@ Lit Solver::pickBranchLit()
                 }
 
 				// undo it
-                current = checkActiveSymmetries();
               	cancelUntil(levelbefore);
 
 				// we might as well directly check for conflicts
@@ -608,7 +607,7 @@ Lit Solver::pickBranchLit()
                     best = order_heap[i];
                     bestcount = current;
                 	if(verbosity>=2){
-                		printf( "Chose variable %d with %d active symmetries\n", var(l), best);
+                		printf( "Chose variable %d with %d active symmetries\n", best, bestcount);
                 	}
                 }
             }
