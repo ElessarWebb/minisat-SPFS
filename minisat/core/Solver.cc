@@ -573,10 +573,10 @@ Lit Solver::pickBranchLit()
         } else if ( drand(random_seed) < activity_look_freq) {
             int best = -1;
             int bestcount = -1;
+            int levelbefore = decisionLevel();
 
             for (int i = 0; i < order_heap.size() && i < 5; i++) {
                 int current;
-                int levelbefore = decisionLevel();
 
 				// do decision + propagation phase
                 Lit l = mkLit(order_heap[i], polarity[order_heap[i]]);
@@ -593,7 +593,7 @@ Lit Solver::pickBranchLit()
                 decisionVars[var(l)]=true;
             	uncheckedEnqueue(l);
 
-                CRef confl = propagate();
+                CRef confl = propagate(false);
 
 				// check symmetry activity
                 current = checkActiveSymmetries();
@@ -947,7 +947,11 @@ void Solver::uncheckedEnqueue(Lit p, CRef from)
 |    Post-conditions:
 |      * the propagation queue is empty, even if there was a conflict.
 |________________________________________________________________________________________________@*/
-CRef Solver::propagate()
+CRef Solver::propagate() {
+	return Solver::propagate(true);
+}
+
+CRef Solver::propagate(bool symprop)
 {
     CRef    confl     = CRef_Undef;
     int     num_props = 0;
@@ -1005,30 +1009,32 @@ CRef Solver::propagate()
         }
         ws.shrink(i - j);
 
-		// weakly active symmetry propagation: the condition qhead==trail.size() makes sure symmetry propagation is executed after unit propagation
-		for( int i=symmetries.size()-1; qhead==trail.size() && confl==CRef_Undef && i>=0; --i){
-			Symmetry* sym = symmetries[i];
-			Lit orig = lit_Undef;
-			if(sym->isActive()){
-				orig = sym->getNextToPropagate();
-				if(orig!=lit_Undef){
-					confl = propagateSymmetrical(sym,orig);
+		if(symprop){
+			// weakly active symmetry propagation: the condition qhead==trail.size() makes sure symmetry propagation is executed after unit propagation
+			for( int i=symmetries.size()-1; qhead==trail.size() && confl==CRef_Undef && i>=0; --i){
+				Symmetry* sym = symmetries[i];
+				Lit orig = lit_Undef;
+				if(sym->isActive()){
+					orig = sym->getNextToPropagate();
+					if(orig!=lit_Undef){
+						confl = propagateSymmetrical(sym,orig);
 
-					// we can bump variables occuring in used symmetries
-					// to make these symmetries --more-- active
-					if(sym_usage_var_bump){
-						sym->bumpVars();
+						// we can bump variables occuring in used symmetries
+						// to make these symmetries --more-- active
+						if(sym_usage_var_bump){
+							sym->bumpVars();
+						}
 					}
 				}
 			}
-		}
-		// weakly inactive symmetry propagation: the condition qhead==trail.size() makes sure symmetry propagation is executed after unit propagation
-		for( int i=symmetries.size()-1; inactivePropagationOptimization && qhead==trail.size() && confl==CRef_Undef && i>=0; --i){
-			Symmetry* sym = symmetries[i];
-			if(!sym->isActive()){
-				Lit orig = sym->getNextToPropagate();
-				if(orig!=lit_Undef){
-					confl = propagateSymmetrical(sym,orig);
+			// weakly inactive symmetry propagation: the condition qhead==trail.size() makes sure symmetry propagation is executed after unit propagation
+			for( int i=symmetries.size()-1; inactivePropagationOptimization && qhead==trail.size() && confl==CRef_Undef && i>=0; --i){
+				Symmetry* sym = symmetries[i];
+				if(!sym->isActive()){
+					Lit orig = sym->getNextToPropagate();
+					if(orig!=lit_Undef){
+						confl = propagateSymmetrical(sym,orig);
+					}
 				}
 			}
 		}
