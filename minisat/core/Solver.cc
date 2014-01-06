@@ -634,7 +634,6 @@ Lit Solver::pickBranchLit()
 
 				// do decision + propagation phase
                 Lit l = mkLit(order_heap[i], polarity[i]);
-                int decisionvarbefore = decisionVars[var(l)];
 
 				// uh, don't use variables that are already assigned
 				// somehow this causes a segfault
@@ -651,7 +650,6 @@ Lit Solver::pickBranchLit()
                 current = checkActiveSymmetries();
 
 				// undo it
-                decisionVars[var(l)]=decisionvarbefore;
               	cancelUntil(levelbefore);
 
                 if (current > bestcount) {
